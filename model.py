@@ -4,56 +4,72 @@ import torch.nn.functional as F
 
 from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv
+from torch.distributions import Categorical
+from functools import reduce
 from MLP import MLP
 
+VertexSet = torch.Tensor
+EdgeIndices = torch.Tensor
+Vertex = torch.Tensor
 
-class DeepHam(nn.Module):
-    def __init__(self, embed_size=16):
-        super(DeepHam, self).__init__()
+class DeepHamModel(nn.Module):
+    def __init__(self,
+                 node_embedding_size: int = 512,
+                 hidden_layer_size: int = 256,
+                 relu_alpha: float = 0.1):
+        self.actor = DeepHamActor(node_embedding_size, hidden_layer_size, relu_alpha)
+        self.critic = DeepHamCritic(hidden_layer_size, 3, relu_alpha)
 
-        ### Hyperparameters ###
-        self.node_embedding_size = embed_size
-        #######################
+    def forward(self, state: tuple[VertexSet, EdgeIndices, Vertex]):
+        # TODO: Proper inputs
+        probs = self.actor(state)
+        value = self.critic(state)
 
-        self.conv1 = GCNConv()
-        self.conv2 = GCNConv()
-        self.conv3 = GCNConv()
+        return probs, value
 
-        self.predictor = MLP()
+class DeepHamActor(nn.Module):
+    def __init__(self, node_embedding_size: int = 512, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
+        super(DeepHamActor, self).__init__()
 
-    def forward(self, vertices, edge_index):
-        out = []
-        original_vertices = vertices.detach()  # breaks autograd connection
+        self.conv1 = GCNConv(-1, node_embedding_size)
+        self.conv2 = GCNConv(node_embedding_size, node_embedding_size)
+        self.conv3 = GCNConv(node_embedding_size, node_embedding_size)
 
-        # FIXME: do something more thoughtful (this breaks our loss)
-        for _ in range(len(original_vertices)):
+        self.predictor = MLP(node_embedding_size, hidden_layer_size, relu_alpha)
 
-            # TODO: Call GNNs here
-            vertices = self.conv1(vertices, edge_index)
-            vertices = vertices.tanh()
-            vertices = self.conv2(vertices, edge_index)
-            vertices = vertices.tanh()
-            vertices = self.conv3(vertices, edge_index)
-            vertices = vertices.tanh()
+    def forward(self, state):
+        vertices, edge_index, current_vertex = state
 
-            probs = self.predictor(vertices)
+        vertex_embeddings = self.conv1(vertices.float(), edge_index)
+        vertex_embeddings = vertex_embeddings.tanh()
+        vertex_embeddings = self.conv2(vertex_embeddings, edge_index)
+        vertex_embeddings = vertex_embeddings.tanh()
+        vertex_embeddings = self.conv3(vertex_embeddings, edge_index)
+        vertex_embeddings = vertices.tanh()
 
-            chosen_vertex = vertices[torch.argmax(probs)]
+        return self.predictor(vertices, edge_index, current_vertex)
 
-            out.append(chosen_vertex)
+class DeepHamCritic(nn.Module):
+    def __init__(self, hidden_layer_size: int = 256, num_hidden_layers: int = 3, relu_alpha: float = 0.1):
+        self.layers = [nn.Linear(-1, hidden_layer_size) for _ in range(num_hidden_layers)]
+        self.output = nn.Linear(hidden_layer_size, 1)
+        self.relu_alpha = relu_alpha
 
-            # TODO: delete chosen vertex (and its incident edges)
+    def forward(self, x):
+        # x |> foldl (fn L acc => leaky_relu o acc) layers
+        #   |> output
+        return self.output(torch.Tensor(reduce(lambda acc, layer: F.leaky_relu(layer(acc), self.relu_alpha), self.layers, x)))
 
-        return out
+# References:
+# https://github.com/pytorch/examples/blob/main/reinforcement_learning/actor_critic.py
+# https://github.com/yc930401/Actor-Critic-pytorch/blob/master/Actor-Critic.py
+class DeepHamLoss(nn.Module):
+    def forward(self, actor_out, critic_out, discounted_reward):
+        advantage = discounted_reward - critic_out
+        log_prob = Categorical(actor_out).log_prob()
 
-# TODO: Come up with a better name
+        actor_loss = -log_prob * advantage.detach()
+        critic_loss = F.smooth_l1_loss(critic_out, torch.tensor([discounted_reward]))
 
+        return actor_loss + critic_loss
 
-class Dist_Loss(nn.Module):
-    def __init__(self):
-        super(Dist_Loss, self).__init__()
-
-    # Computes difference in length between two tensors
-    # Squared (because that's a good idea)
-    def forward(self, X: nn.Tensor, Y: nn.Tensor):
-        return (len(X) - len(Y)) ** 2

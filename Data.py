@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import torch_geometric
 import numpy as np
 from torch_geometric.data import Data
@@ -57,11 +58,14 @@ def generate_hampath_graph(verts: int, num_rand_edges) -> Data:
     @param num_rand_edges:
         the approximate number of extra edges to insert into the graph in
         addition to the guaranteed Hamiltonian path
-    
+
     @return:
         a torch_geometric Data object representing the generated graph
     """
-    vertices = torch.tensor([[x] for x in range(verts)])
+    # vertices = torch.tensor([[x] for x in range(verts)], dtype=torch.float64)
+    vertices = torch.arange(0, verts)
+    vertices = F.one_hot(vertices, num_classes=verts)
+    
     _, all_edges = generate_random_edges(verts, num_rand_edges)
     edges_transposed = torch.tensor(np.array(list(map(list, generate_undirected_graph(all_edges)))))
     data = Data(x=vertices, edge_index=edges_transposed.t().contiguous())
@@ -75,19 +79,19 @@ def generate_and_save_corpus(num_graphs: int, verts: int, delta_v: int, num_rand
 
     @param num_graphs:
         the number of graphs to generate
-    
+
     @param verts:
         the (roughly) mean number of vertices for each graph
-    
+
     @param delta_v:
         the maximum allowed delta for random vertex count variation
 
     @param num_rand_edges:
         the (roughly) mean number of non-core-path edges for each graph
-    
+
     @param delta_e:
         the maximum allowed delta for random edge count variation
-    
+
     @param out_path:
         the directory in which to save the generated graphs
     """
@@ -106,10 +110,10 @@ def load_corpus(path: str, load_count: int = -1) -> list[Data]:
 
     @param path:
         the directory containing the corpus
-    
+
     @param load_count:
         the number of graphs to load, or -1 to load the entire corpus
-    
+
     @return:
         a list of the deserialized graphs
     """
@@ -120,9 +124,9 @@ def load_corpus(path: str, load_count: int = -1) -> list[Data]:
         graphs.append(torch.load(next_graph()))
         graph_num += 1
         load_count -= 1
-    
+
     if load_count > 0:
         print(f'Warning: only found {graph_num} out of {load_count} requested graphs')
-    
+
     return graphs
-    
+
