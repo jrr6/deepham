@@ -103,7 +103,7 @@ class DeepHamLoss(nn.Module):
         actor_losses: list[torch.Tensor] = []
         critic_losses: list[torch.Tensor] = []
 
-        for (log_prob, value, dr) in zip(log_probs, values, discounted_rewards):
+        for (log_prob, value, dr) in zip(log_probs, values, dr_tensor):
             advantage = dr - value.detach()
             actor_losses.append(-log_prob * advantage)
             # TODO: maybe come back to this
