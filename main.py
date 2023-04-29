@@ -12,7 +12,7 @@ from GraphState import GraphState, Reward
 
 DATA_PATH = './data'
 LEARNING_RATE = 0.001
-N_EPISODES = 10
+N_EPISODES = 1000
 
 # Run one episode
 # TODO: TYPES!
@@ -20,13 +20,15 @@ def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Opt
     # Clear gradients
     optimizer.zero_grad()
 
-    state: GraphState = env.reset()
+    state: GraphState = env.reset(new_graph=False)
 
     rewards: list[Reward] = []
     log_probs: list[torch.Tensor] = []
     values: list[torch.Tensor] = []
 
-    while True:
+    done = False
+
+    while not done:
         probs, value = model(state)  # Perform a single forward pass.
         distribution = Categorical(probs.t())
         # Singleton tensor
@@ -38,31 +40,30 @@ def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Opt
         rewards.append(reward)
         log_probs.append(distribution.log_prob(chosen_action))
 
-        if done:
-            break
-
     loss = criterion(log_probs, values, rewards)
     loss.backward()
     return loss
 
 
 def main():
-    # corpus = load_corpus(DATA_PATH)
+    corpus = load_corpus(DATA_PATH)
 
     model = DeepHamModel()
     criterion = DeepHamLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # for graph in corpus[0:1]:
-    env = GraphState(None)
-    for _ in range(N_EPISODES):
+    env = GraphState(corpus[8])
+    model.train()
+    for i in range(N_EPISODES):
         # graph = env.graph.clone()  # type: ignore
 
         loss = run_episode(model, env, optimizer, criterion)
 
         # nx.draw_kamada_kawai(pyg.utils.to_networkx(graph, to_undirected=True), with_labels=True) # type: ignore
 
-        print(f"loss = f{loss.item()};\tpath = {env.path}")
+        if i % 50 == 49:
+            print(f"loss = f{loss.item()}\t path len = {len(env.path)}")
         # matplotlib.pyplot.show()  # type: ignore
 
 

@@ -89,7 +89,7 @@ class DeepHamLoss(nn.Module):
                 log_probs: list[torch.Tensor],
                 values: list[torch.Tensor],
                 rewards: list[Reward],
-                gamma: float=0.99) -> torch.Tensor:
+                gamma: float=1) -> torch.Tensor:
         discounted_reward: float = 0.
         discounted_rewards: list[float] = []
         for reward in rewards[::-1]:
@@ -104,9 +104,12 @@ class DeepHamLoss(nn.Module):
         critic_losses: list[torch.Tensor] = []
 
         for (log_prob, value, dr) in zip(log_probs, values, dr_tensor):
-            advantage = dr - value.detach()
-            actor_losses.append(-log_prob * advantage)
+            advantage = dr - value
+            actor_losses.append(-log_prob * advantage.detach())
             # TODO: maybe come back to this
-            critic_losses.append(F.smooth_l1_loss(value, torch.tensor([dr])))
+            # critic_losses.append(F.smooth_l1_loss(value, torch.tensor([dr])))
+            critic_losses.append(advantage**2)
+        
+        # print("actor loss", torch.stack(actor_losses).mean().item(), "critic loss", torch.stack(critic_losses).mean().item())
 
         return torch.stack(actor_losses).mean() + torch.stack(critic_losses).mean()
