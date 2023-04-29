@@ -1,18 +1,17 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
-from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv
-from torch.distributions import Categorical
-from functools import reduce
+from GraphState import Reward
 from MLP import MLP
 
 VertexSet = torch.Tensor
 EdgeIndices = torch.Tensor
 Vertex = torch.Tensor
 
-STATE_SIZE_TODO = -1
+EPSILON = np.finfo(np.float32).eps.item()  # avoid-div-by-0 factor
 
 class DeepHamModel(nn.Module):
     def __init__(self,
@@ -21,7 +20,7 @@ class DeepHamModel(nn.Module):
                  relu_alpha: float = 0.1):
         super(DeepHamModel, self).__init__()
         self.actor = DeepHamActor(node_embedding_size, hidden_layer_size, relu_alpha)
-        self.critic = DeepHamCritic(STATE_SIZE_TODO, hidden_layer_size, 3, relu_alpha)
+        self.critic = DeepHamCritic(hidden_layer_size, relu_alpha)
 
     def forward(self, state: tuple[VertexSet, EdgeIndices, Vertex]):
         # TODO: Proper inputs
@@ -55,9 +54,9 @@ class DeepHamActor(nn.Module):
 
 
 class DeepHamCritic(nn.Module):
-    def __init__(self, input_dim, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
+    def __init__(self, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
         super(DeepHamCritic, self).__init__()
-        self.layer1 = nn.Linear(input_dim, hidden_layer_size)
+        self.layer1 = nn.LazyLinear(hidden_layer_size)
         self.layer2 = nn.Linear(hidden_layer_size, hidden_layer_size)
         self.layer3 = nn.Linear(hidden_layer_size, hidden_layer_size)
         self.output = nn.Linear(hidden_layer_size, 1)
@@ -76,13 +75,30 @@ class DeepHamCritic(nn.Module):
 # https://github.com/pytorch/examples/blob/main/reinforcement_learning/actor_critic.py
 # https://github.com/yc930401/Actor-Critic-pytorch/blob/master/Actor-Critic.py
 
-
+# TODO: should this instead subclass `_Loss`?
 class DeepHamLoss(nn.Module):
-    def forward(self, actor_out, critic_out, discounted_reward):
-        advantage = discounted_reward - critic_out
-        log_prob = Categorical(actor_out).log_prob()
+    def forward(self,
+                log_probs: list[torch.Tensor],
+                values: list[torch.Tensor],
+                rewards: list[Reward],
+                gamma: float=0.99) -> torch.Tensor:
+        discounted_reward: float = 0.
+        discounted_rewards: list[float] = []
+        for reward in rewards[::-1]:
+            discounted_reward = reward + gamma * discounted_reward
+            discounted_rewards.append(discounted_reward)
+        discounted_rewards.reverse()
 
-        actor_loss = -log_prob * advantage.detach()
-        critic_loss = F.smooth_l1_loss(critic_out, torch.tensor([discounted_reward]))
+        dr_tensor: torch.Tensor = torch.tensor(discounted_rewards)
+        dr_tensor = (dr_tensor - dr_tensor.mean()) / (dr_tensor.std() + EPSILON)
 
-        return actor_loss + critic_loss
+        actor_losses: list[torch.Tensor] = []
+        critic_losses: list[torch.Tensor] = []
+
+        for (log_prob, value, dr) in zip(log_probs, values, discounted_rewards):
+            advantage = dr - value
+            actor_losses.append(-log_prob * advantage)
+            # TODO: maybe come back to this
+            critic_losses.append(F.smooth_l1_loss(value, torch.tensor([dr])))
+
+        return torch.stack(actor_losses).sum() + torch.stack(critic_losses).sum()

@@ -1,5 +1,6 @@
 import torch
-import torch_geometric
+
+from torch_geometric.utils.subgraph import k_hop_subgraph
 
 from torch import nn
 
@@ -8,7 +9,7 @@ class Mask(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(logits, edges, vertex):
+    def forward(self, logits, edges, vertex):
         """
         @param logits: logits for all vertices
 
@@ -20,7 +21,7 @@ class Mask(nn.Module):
         """
 
         # compute neighbors for the inputted vertex using the edges
-        indices, _, _, _, = torch_geometric.util.k_hop_subgraph(vertex, 1, edges)
+        indices, _, _, _, = k_hop_subgraph(vertex, 1, edges)
         mask = torch.ones(logits.shape[0]) * float('-inf')
         mask.scatter(0, indices, 0)
 
@@ -44,5 +45,5 @@ class MLP(nn.Module):
 
     def forward(self, x: torch.Tensor, edges, vertex):
         x = self.seq(x)
-        x = x + Mask.forward(x, edges, vertex)
+        x = x + self.mask(x, edges, vertex)
         return self.softmax(x)
