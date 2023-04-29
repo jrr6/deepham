@@ -104,9 +104,9 @@ class DeepHamLoss(nn.Module):
         critic_losses: list[torch.Tensor] = []
 
         for (log_prob, value, dr) in zip(log_probs, values, discounted_rewards):
-            advantage = dr - value
+            advantage = dr - value.detach()
             actor_losses.append(-log_prob * advantage)
             # TODO: maybe come back to this
             critic_losses.append(F.smooth_l1_loss(value, torch.tensor([dr])))
 
-        return torch.stack(actor_losses).sum() + torch.stack(critic_losses).sum()
+        return torch.stack(actor_losses).mean() + torch.stack(critic_losses).mean()

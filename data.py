@@ -72,6 +72,11 @@ def generate_hampath_graph(verts: int, num_rand_edges) -> Data:
     assert data.is_undirected()
     return data
 
+def generate_semirandom_hampath_graph(verts: int, delta_v: int, num_rand_edges: int, delta_e: int) -> Data:
+    v = verts + randint(-delta_v, delta_v)
+    e = num_rand_edges + randint(-delta_e, delta_e)
+    return generate_hampath_graph(v, e)
+
 def generate_and_save_corpus(num_graphs: int, verts: int, delta_v: int, num_rand_edges: int, delta_e: int, out_path: str) -> None:
     """
     Generates random Hamiltonian-path-containing graphs with the specified number of vertices and random edges
@@ -98,9 +103,7 @@ def generate_and_save_corpus(num_graphs: int, verts: int, delta_v: int, num_rand
 
     print('Generating graphs...')
     for i in tqdm(range(num_graphs)):
-        v = verts + randint(-delta_v, delta_v)
-        e = num_rand_edges + randint(-delta_e, delta_e)
-        data = generate_hampath_graph(v, e)
+        data = generate_semirandom_hampath_graph(verts, delta_v, num_rand_edges, delta_e)
         torch.save(data, f'{out_path}/graph{i}.pt')
 
 # TODO: make this more flexible (e.g., customizable # of graphs to load)

@@ -5,7 +5,7 @@ import torch_geometric as pyg
 import numpy as np
 
 from torch_geometric.data import Data
-from data import generate_hampath_graph
+from data import generate_semirandom_hampath_graph
 
 
 Reward = int
@@ -15,10 +15,11 @@ IsTruncated = bool
 
 class GraphState:
     def __init__(self, graph: None | Data = None):
-        self.reset(graph)
+        self.initial_graph = graph if graph is not None else generate_semirandom_hampath_graph(30, 0, 10, 10)
+        self.reset(new_graph=False)
 
-    def reset(self, graph: None | Data = None) -> GraphState:
-        self.graph = graph if graph is not None else generate_hampath_graph(3, 10)
+    def reset(self, new_graph=True) -> GraphState:
+        self.graph = generate_semirandom_hampath_graph(30, 0, 10, 10) if new_graph else self.initial_graph.clone()
         self.num_vertices = self.graph.x.size()[0]
         self.path = []
 
@@ -33,7 +34,7 @@ class GraphState:
 
         if not (self.curr_vertex_index == -1 or
                 torch.all(np.equal(self.graph.edge_index, edge), dim=0).any().item()):  # type: ignore
-            raise RuntimeError("Tried to step to a non-adjacent vertex")
+            raise RuntimeError(f"Tried to step to non-adjacent vertex {action_idx} from vertex {self.curr_vertex_index}")
 
         # Remove all the edges from current_vertex in the graph so we don't revisit it
         not_adjacent_to_old_vertex = torch.all(self.graph.edge_index != self.curr_vertex_index, dim=0)
