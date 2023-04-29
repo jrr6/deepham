@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from torch_geometric.nn import GCNConv
-from GraphState import Reward
+from GraphState import GraphState, Reward
 from MLP import MLP
 
 VertexSet = torch.Tensor
@@ -38,35 +38,43 @@ class DeepHamActor(nn.Module):
         self.conv2 = GCNConv(node_embedding_size, node_embedding_size)
         self.conv3 = GCNConv(node_embedding_size, node_embedding_size)
 
-        self.predictor = MLP(node_embedding_size, hidden_layer_size, relu_alpha)
+        self.predictor = MLP(hidden_layer_size, relu_alpha)
 
-    def forward(self, state):
-        vertices, edge_index, current_vertex = state
+    def forward(self, state: GraphState):
+        vertices: torch.Tensor = state.graph.x
+        edge_index: torch.Tensor = state.graph.edge_index
+        current_vertex_idx: int = state.curr_vertex_index
 
-        vertex_embeddings = self.conv1(vertices.float(), edge_index)
+        vertex_embeddings: torch.Tensor = self.conv1(vertices.float(), edge_index)
         vertex_embeddings = vertex_embeddings.tanh()
         vertex_embeddings = self.conv2(vertex_embeddings, edge_index)
         vertex_embeddings = vertex_embeddings.tanh()
         vertex_embeddings = self.conv3(vertex_embeddings, edge_index)
         vertex_embeddings = vertices.tanh()
 
-        return self.predictor(vertices, edge_index, current_vertex)
+        return self.predictor(vertex_embeddings, edge_index, current_vertex_idx)
 
 
+# FIXME: this should be more like the actor? not copy/pasted?
 class DeepHamCritic(nn.Module):
     def __init__(self, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
         super(DeepHamCritic, self).__init__()
+        self.conv1 = GCNConv(-1, 512)
+
         self.layer1 = nn.LazyLinear(hidden_layer_size)
         self.layer2 = nn.Linear(hidden_layer_size, hidden_layer_size)
         self.layer3 = nn.Linear(hidden_layer_size, hidden_layer_size)
         self.output = nn.Linear(hidden_layer_size, 1)
         self.relu_alpha = relu_alpha
 
-    def forward(self, x):
+    def forward(self, state):
+        vertices: torch.Tensor = state.graph.x
+        edge_index: torch.Tensor = state.graph.edge_index
+
         return self.output(
             F.leaky_relu(self.layer3(
                 F.leaky_relu(self.layer2(
-                    F.leaky_relu(self.layer1(x), self.relu_alpha)
+                    F.leaky_relu(self.layer1(self.conv1(vertices.float(), edge_index)), self.relu_alpha)
                 ), self.relu_alpha)
             ), self.relu_alpha)
         )
