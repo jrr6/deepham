@@ -12,14 +12,16 @@ VertexSet = torch.Tensor
 EdgeIndices = torch.Tensor
 Vertex = torch.Tensor
 
+STATE_SIZE_TODO = -1
 
 class DeepHamModel(nn.Module):
     def __init__(self,
                  node_embedding_size: int = 512,
                  hidden_layer_size: int = 256,
                  relu_alpha: float = 0.1):
+        super(DeepHamModel, self).__init__()
         self.actor = DeepHamActor(node_embedding_size, hidden_layer_size, relu_alpha)
-        self.critic = DeepHamCritic(hidden_layer_size, 3, relu_alpha)
+        self.critic = DeepHamCritic(STATE_SIZE_TODO, hidden_layer_size, 3, relu_alpha)
 
     def forward(self, state: tuple[VertexSet, EdgeIndices, Vertex]):
         # TODO: Proper inputs
@@ -53,15 +55,22 @@ class DeepHamActor(nn.Module):
 
 
 class DeepHamCritic(nn.Module):
-    def __init__(self, hidden_layer_size: int = 256, num_hidden_layers: int = 3, relu_alpha: float = 0.1):
-        self.layers = [nn.Linear(-1, hidden_layer_size) for _ in range(num_hidden_layers)]
+    def __init__(self, input_dim, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
+        super(DeepHamCritic, self).__init__()
+        self.layer1 = nn.Linear(input_dim, hidden_layer_size)
+        self.layer2 = nn.Linear(hidden_layer_size, hidden_layer_size)
+        self.layer3 = nn.Linear(hidden_layer_size, hidden_layer_size)
         self.output = nn.Linear(hidden_layer_size, 1)
         self.relu_alpha = relu_alpha
 
     def forward(self, x):
-        # x |> foldl (fn L acc => leaky_relu o acc) layers
-        #   |> output
-        return self.output(torch.Tensor(reduce(lambda acc, layer: F.leaky_relu(layer(acc), self.relu_alpha), self.layers, x)))
+        return self.output(
+            F.leaky_relu(self.layer3(
+                F.leaky_relu(self.layer2(
+                    F.leaky_relu(self.layer1(x), self.relu_alpha)
+                ), self.relu_alpha)
+            ), self.relu_alpha)
+        )
 
 # References:
 # https://github.com/pytorch/examples/blob/main/reinforcement_learning/actor_critic.py

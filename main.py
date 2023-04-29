@@ -1,6 +1,6 @@
 import torch
 from data import load_corpus
-from model import DeepHamModel, Dist_Loss
+from model import DeepHamModel, DeepHamLoss
 
 DATA_PATH = './data'
 LEARNING_RATE = 0.001
@@ -28,7 +28,7 @@ def main():
     corpus = load_corpus(DATA_PATH)
 
     model = DeepHamModel()
-    criterion = Dist_Loss()
+    criterion = DeepHamLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     for graph in corpus[0:1]:
