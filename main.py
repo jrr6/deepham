@@ -5,6 +5,7 @@ from model import DeepHamModel, Dist_Loss
 DATA_PATH = './data'
 LEARNING_RATE = 0.001
 
+
 def train(model, optimizer, criterion, data):
     optimizer.zero_grad()  # Clear gradients.
     probs = model(data.x, data.edge_index)  # Perform a single forward pass.
@@ -22,6 +23,7 @@ def train(model, optimizer, criterion, data):
     optimizer.step()  # Update parameters based on gradients.
     return loss
 
+
 def main():
     corpus = load_corpus(DATA_PATH)
 
@@ -31,6 +33,7 @@ def main():
 
     for graph in corpus[0:1]:
         train(model, optimizer, criterion, graph)
+
 
 if __name__ == "__main__":
     main()

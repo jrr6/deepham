@@ -3,6 +3,7 @@ import torch_geometric
 
 from torch import nn
 
+
 class Mask(nn.Module):
     def __init__(self):
         super().__init__()
@@ -39,7 +40,7 @@ class MLP(nn.Module):
             # Mask()
         )
         self.mask = Mask()
-        self.softmax = nn.Softmax(dim = 0)
+        self.softmax = nn.Softmax(dim=0)
 
     def forward(self, x: torch.Tensor, edges, vertex):
         x = self.seq(x)

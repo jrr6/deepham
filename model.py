@@ -12,6 +12,7 @@ VertexSet = torch.Tensor
 EdgeIndices = torch.Tensor
 Vertex = torch.Tensor
 
+
 class DeepHamModel(nn.Module):
     def __init__(self,
                  node_embedding_size: int = 512,
@@ -26,6 +27,7 @@ class DeepHamModel(nn.Module):
         value = self.critic(state)
 
         return probs, value
+
 
 class DeepHamActor(nn.Module):
     def __init__(self, node_embedding_size: int = 512, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
@@ -49,6 +51,7 @@ class DeepHamActor(nn.Module):
 
         return self.predictor(vertices, edge_index, current_vertex)
 
+
 class DeepHamCritic(nn.Module):
     def __init__(self, hidden_layer_size: int = 256, num_hidden_layers: int = 3, relu_alpha: float = 0.1):
         self.layers = [nn.Linear(-1, hidden_layer_size) for _ in range(num_hidden_layers)]
@@ -63,6 +66,8 @@ class DeepHamCritic(nn.Module):
 # References:
 # https://github.com/pytorch/examples/blob/main/reinforcement_learning/actor_critic.py
 # https://github.com/yc930401/Actor-Critic-pytorch/blob/master/Actor-Critic.py
+
+
 class DeepHamLoss(nn.Module):
     def forward(self, actor_out, critic_out, discounted_reward):
         advantage = discounted_reward - critic_out
@@ -72,4 +77,3 @@ class DeepHamLoss(nn.Module):
         critic_loss = F.smooth_l1_loss(critic_out, torch.tensor([discounted_reward]))
 
         return actor_loss + critic_loss
-
