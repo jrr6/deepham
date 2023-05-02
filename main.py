@@ -58,7 +58,6 @@ def main():
 
     fig, [loss_ax, length_ax, graph_ax] = plt.subplots(1, 3)
     for i, env in enumerate(ReplayBuffer(N_EPISODES)):
-        graph = env.graph.clone()
         loss = run_episode(model, env, optimizer, criterion)
 
         lengths.append(len(env.path))
@@ -77,8 +76,10 @@ def main():
             graph_ax.clear()
             graph_ax.set_title(f"{env.path}")
             print(f"Epoch {i + 1}: loss = {loss.item()}\t path len = {len(env.path)}\t path = {env.path}")
-            nx.draw_kamada_kawai(pyg.utils.to_networkx(graph, to_undirected=True),  # type: ignore
-                                 with_labels=True, ax=graph_ax)
+            nx_graph = pyg.utils.to_networkx(env.initial_graph, to_undirected=True)  # type: ignore
+            color_offset = 50
+            colors = [color_offset + env.path.index(v) if v in env.path else 0 for v in list(nx_graph.nodes)]
+            nx.draw_kamada_kawai(nx_graph, with_labels=True, node_color=colors, ax=graph_ax, cmap=plt.cm.Blues) # type: ignore
 
         plt.pause(0.01)
 
