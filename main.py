@@ -14,9 +14,6 @@ LEARNING_RATE = 0.001
 N_EPISODES = 500
 PRINT_FREQUENCY = 10
 
-# Run one episode
-# TODO: TYPES!
-
 
 def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Optimizer, criterion: DeepHamLoss):
     # Clear gradients
@@ -55,26 +52,37 @@ def main():
     criterion = DeepHamLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    # for graph in corpus[0:1]:
-    env = GraphState(None)
-    graph = env.graph.clone()  # type: ignore
+    lengths = []
+    losses = []
     model.train()
 
-    # for i in range(N_EPISODES):
-    lengths = []
+    fig, [loss_ax, length_ax, graph_ax] = plt.subplots(1, 3)
     for i, env in enumerate(ReplayBuffer(N_EPISODES)):
+        graph = env.graph.clone()
         loss = run_episode(model, env, optimizer, criterion)
-        lengths.append(len(env.path))
 
-        # nx.draw_kamada_kawai(pyg.utils.to_networkx(graph, to_undirected=True), with_labels=True) # type: ignore
+        lengths.append(len(env.path))
+        losses.append(loss.detach().numpy())
+
+        loss_ax.clear()
+        length_ax.clear()
+
+        loss_ax.set_title("Loss Plot")
+        length_ax.set_title("Length Plot")
+
+        loss_ax.plot(losses)
+        length_ax.plot(lengths)
 
         if i % PRINT_FREQUENCY == PRINT_FREQUENCY - 1:
+            graph_ax.clear()
+            graph_ax.set_title(f"{env.path}")
             print(f"Epoch {i + 1}: loss = {loss.item()}\t path len = {len(env.path)}\t path = {env.path}")
-    
-    plt.plot(lengths)
-    nx.draw_kamada_kawai(pyg.utils.to_networkx(graph, to_undirected=True), with_labels=True) # type: ignore
-    plt.show()  # type: ignore
+            nx.draw_kamada_kawai(pyg.utils.to_networkx(graph, to_undirected=True),  # type: ignore
+                                 with_labels=True, ax=graph_ax)
+
+        plt.pause(0.01)
 
 
 if __name__ == "__main__":
     main()
+    input()
