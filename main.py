@@ -82,7 +82,7 @@ def main():
             nx_graph = pyg.utils.to_networkx(env.initial_graph, to_undirected=True)  # type: ignore
             color_offset = 50
             colors = [color_offset + env.path.index(v) if v in env.path else 0 for v in list(nx_graph.nodes)]
-            nx.draw_kamada_kawai(nx_graph, with_labels=True, node_color=colors,
+            nx.draw_kamada_kawai(nx_graph, with_labels=True, node_color=colors,  # type: ignore
                                  ax=graph_ax, cmap=plt.cm.Blues)  # type: ignore
 
         plt.pause(0.01)

@@ -103,7 +103,7 @@ class DeepHamLoss(nn.Module):
                 log_probs: list[torch.Tensor],
                 values: list[torch.Tensor],
                 rewards: list[Reward],
-                gamma: float=0.99) -> torch.Tensor:
+                gamma: float = 0.99) -> torch.Tensor:
         discounted_reward: float = 0.
         discounted_rewards: list[float] = []
         for reward in rewards[::-1]:
