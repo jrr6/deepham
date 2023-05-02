@@ -19,7 +19,7 @@ def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Opt
     # Clear gradients
     optimizer.zero_grad()
 
-    state: GraphState = env.reset(new_graph=True)
+    state: GraphState = env.reset(new_graph=False)
 
     rewards: list[Reward] = []
     log_probs: list[torch.Tensor] = []
