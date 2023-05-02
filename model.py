@@ -13,6 +13,7 @@ Vertex = torch.Tensor
 
 EPSILON = np.finfo(np.float32).eps.item()  # avoid-div-by-0 factor
 
+
 class DeepHamModel(nn.Module):
     def __init__(self,
                  node_embedding_size: int = 512,
@@ -96,7 +97,7 @@ class DeepHamCritic(nn.Module):
 # https://github.com/pytorch/examples/blob/main/reinforcement_learning/actor_critic.py
 # https://github.com/yc930401/Actor-Critic-pytorch/blob/master/Actor-Critic.py
 
-# TODO: should this instead subclass `_Loss`?
+
 class DeepHamLoss(nn.Module):
     def forward(self,
                 log_probs: list[torch.Tensor],
@@ -122,7 +123,7 @@ class DeepHamLoss(nn.Module):
             # TODO: maybe come back to this
             # critic_losses.append(F.smooth_l1_loss(value, torch.tensor([dr])))
             critic_losses.append(advantage**2)
-        
+
         # print("actor loss", torch.stack(actor_losses).mean().item(), "critic loss", torch.stack(critic_losses).mean().item())
 
         return torch.stack(actor_losses).mean() + torch.stack(critic_losses).mean()

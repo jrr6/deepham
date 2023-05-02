@@ -14,17 +14,28 @@ IsTruncated = bool
 
 
 class GraphState:
-    def __init__(self, graph: None | Data = None):
-        self.initial_graph = graph if graph is not None else generate_semirandom_hampath_graph(30, 0, 10, 10)
+    def __init__(self, graph: None | Data = None, starting_vertex_index: None | int = None):
+        assert graph is None and starting_vertex_index is None or graph is not None and starting_vertex_index is not None
+
+        if graph is None and starting_vertex_index is None:
+            self.initial_graph, self.initial_vertex_index = generate_semirandom_hampath_graph(30, 0, 10, 10)
+        elif graph is not None and starting_vertex_index is not None:
+            self.initial_graph, self.initial_vertex_index = graph, starting_vertex_index
+        else:
+            raise RuntimeError(
+                "Either both graph and starting vertex should be specified or both should not be specified")
+
         self.reset(new_graph=False)
 
     def reset(self, new_graph=True) -> GraphState:
-        self.graph = generate_semirandom_hampath_graph(30, 0, 10, 10) if new_graph else self.initial_graph.clone()
-        self.num_vertices = self.graph.x.size()[0]
-        self.path = []
+        if new_graph:
+            self.graph, self.curr_vertex_index = generate_semirandom_hampath_graph(30, 0, 10, 10)
+        else:
+            self.graph, self.curr_vertex_index = self.initial_graph.clone(), self.initial_vertex_index
 
+        self.num_vertices = self.graph.x.size()[0]
         self.curr_vertex = torch.zeros(size=(self.num_vertices,))
-        self.curr_vertex_index = -1
+        self.path = []
 
         return self
 
@@ -34,7 +45,8 @@ class GraphState:
 
         if not (self.curr_vertex_index == -1 or
                 torch.all(np.equal(self.graph.edge_index, edge), dim=0).any().item()):  # type: ignore
-            raise RuntimeError(f"Tried to step to non-adjacent vertex {action_idx} from vertex {self.curr_vertex_index}")
+            raise RuntimeError(
+                f"Tried to step to non-adjacent vertex {action_idx} from vertex {self.curr_vertex_index}")
 
         # Remove all the edges from current_vertex in the graph so we don't revisit it
         not_adjacent_to_old_vertex = torch.all(self.graph.edge_index != self.curr_vertex_index, dim=0)

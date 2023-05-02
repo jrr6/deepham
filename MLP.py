@@ -25,7 +25,7 @@ class Mask(nn.Module):
             return torch.zeros_like(logits)
 
         # compute neighbors for the inputted vertex using the edges
-        indices, _, _, _, = k_hop_subgraph(vertex, 1, edge_index)
+        indices, _, _, _, = k_hop_subgraph(int(vertex), 1, edge_index)
         mask = torch.ones(logits.shape[0]) * float('-inf')
         mask = mask.scatter(0, indices, 0)
         mask[vertex] = float('-inf')
