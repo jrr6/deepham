@@ -12,7 +12,8 @@ from GraphState import GraphState, Reward
 
 DATA_PATH = './data'
 LEARNING_RATE = 0.001
-N_EPISODES = 1000
+N_EPISODES = 500
+PRINT_FREQUENCY = 10
 
 # Run one episode
 # TODO: TYPES!
@@ -42,19 +43,22 @@ def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Opt
 
     loss = criterion(log_probs, values, rewards)
     loss.backward()
+    optimizer.step()
     return loss
 
 
 def main():
-    corpus = load_corpus(DATA_PATH)
+    # corpus = load_corpus(DATA_PATH)
 
     model = DeepHamModel()
     criterion = DeepHamLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # for graph in corpus[0:1]:
-    env = GraphState(corpus[8])
+    env = GraphState(None)
+    graph = env.graph.clone()  # type: ignore
     model.train()
+
     for i in range(N_EPISODES):
         # graph = env.graph.clone()  # type: ignore
 
@@ -62,9 +66,10 @@ def main():
 
         # nx.draw_kamada_kawai(pyg.utils.to_networkx(graph, to_undirected=True), with_labels=True) # type: ignore
 
-        if i % 50 == 49:
-            print(f"loss = f{loss.item()}\t path len = {len(env.path)}")
-        # matplotlib.pyplot.show()  # type: ignore
+        if i % PRINT_FREQUENCY == PRINT_FREQUENCY - 1:
+            print(f"Epoch {i + 1}: loss = {loss.item()}\t path len = {len(env.path)}\t path = {env.path}")
+    nx.draw_kamada_kawai(pyg.utils.to_networkx(graph, to_undirected=True), with_labels=True) # type: ignore
+    matplotlib.pyplot.show()  # type: ignore
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ class DeepHamModel(nn.Module):
                  relu_alpha: float = 0.1):
         super(DeepHamModel, self).__init__()
         self.actor = DeepHamActor(node_embedding_size, hidden_layer_size, relu_alpha)
-        self.critic = DeepHamCritic(hidden_layer_size, relu_alpha)
+        self.critic = DeepHamCritic(node_embedding_size, hidden_layer_size, relu_alpha)
 
     def forward(self, state: tuple[VertexSet, EdgeIndices, Vertex]):
         # TODO: Proper inputs
@@ -45,39 +45,52 @@ class DeepHamActor(nn.Module):
         edge_index: torch.Tensor = state.graph.edge_index
         current_vertex_idx: int = state.curr_vertex_index
 
-        vertex_embeddings: torch.Tensor = self.conv1(vertices.float(), edge_index)
+        vertex_embeddings: torch.Tensor = self.conv1(vertices, edge_index)
         vertex_embeddings = vertex_embeddings.tanh()
         vertex_embeddings = self.conv2(vertex_embeddings, edge_index)
         vertex_embeddings = vertex_embeddings.tanh()
         vertex_embeddings = self.conv3(vertex_embeddings, edge_index)
-        vertex_embeddings = vertices.tanh()
+        vertex_embeddings = vertex_embeddings.tanh()
+
+        # print(vertex_embeddings)
 
         return self.predictor(vertex_embeddings, edge_index, current_vertex_idx)
 
 
 # FIXME: this should be more like the actor? not copy/pasted?
 class DeepHamCritic(nn.Module):
-    def __init__(self, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
+    def __init__(self, node_embedding_size: int = 512, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
         super(DeepHamCritic, self).__init__()
-        self.conv1 = GCNConv(-1, 512)
+        self.conv1 = GCNConv(-1, node_embedding_size)
+        self.conv2 = GCNConv(-1, node_embedding_size)
+        self.conv3 = GCNConv(-1, node_embedding_size)
 
-        self.layer1 = nn.LazyLinear(hidden_layer_size)
-        self.layer2 = nn.Linear(hidden_layer_size, hidden_layer_size)
-        self.layer3 = nn.Linear(hidden_layer_size, hidden_layer_size)
-        self.output = nn.Linear(hidden_layer_size, 1)
+        self.dense = nn.Sequential(
+            nn.LazyLinear(hidden_layer_size),
+            nn.LeakyReLU(relu_alpha),
+            nn.Linear(hidden_layer_size, hidden_layer_size),
+            nn.LeakyReLU(relu_alpha),
+            nn.Linear(hidden_layer_size, hidden_layer_size),
+            nn.LeakyReLU(relu_alpha),
+            nn.Linear(hidden_layer_size, 1))
         self.relu_alpha = relu_alpha
 
     def forward(self, state):
         vertices: torch.Tensor = state.graph.x
         edge_index: torch.Tensor = state.graph.edge_index
 
-        return self.output(
-            F.leaky_relu(self.layer3(
-                F.leaky_relu(self.layer2(
-                    F.leaky_relu(self.layer1(self.conv1(vertices.float(), edge_index)), self.relu_alpha)
-                ), self.relu_alpha)
-            ), self.relu_alpha)
-        )
+        vertex_embeddings: torch.Tensor = self.conv1(vertices, edge_index)
+        vertex_embeddings = vertex_embeddings.tanh()
+        vertex_embeddings = self.conv2(vertex_embeddings, edge_index)
+        vertex_embeddings = vertex_embeddings.tanh()
+        vertex_embeddings = self.conv3(vertex_embeddings, edge_index)
+        vertex_embeddings = vertex_embeddings.tanh()
+
+        flattened_embeddings = torch.flatten(vertex_embeddings)
+        output = self.dense(flattened_embeddings)
+
+        # print(output)
+        return output
 
 # References:
 # https://github.com/pytorch/examples/blob/main/reinforcement_learning/actor_critic.py
@@ -89,7 +102,7 @@ class DeepHamLoss(nn.Module):
                 log_probs: list[torch.Tensor],
                 values: list[torch.Tensor],
                 rewards: list[Reward],
-                gamma: float=1) -> torch.Tensor:
+                gamma: float=0.99) -> torch.Tensor:
         discounted_reward: float = 0.
         discounted_rewards: list[float] = []
         for reward in rewards[::-1]:
@@ -98,7 +111,7 @@ class DeepHamLoss(nn.Module):
         discounted_rewards.reverse()
 
         dr_tensor: torch.Tensor = torch.tensor(discounted_rewards)
-        dr_tensor = (dr_tensor - dr_tensor.mean()) / (dr_tensor.std() + EPSILON)
+        # dr_tensor = (dr_tensor - dr_tensor.mean()) / (dr_tensor.std() + EPSILON)
 
         actor_losses: list[torch.Tensor] = []
         critic_losses: list[torch.Tensor] = []

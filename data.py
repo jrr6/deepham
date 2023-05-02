@@ -64,7 +64,7 @@ def generate_hampath_graph(verts: int, num_rand_edges) -> Data:
     """
     # vertices = torch.tensor([[x] for x in range(verts)], dtype=torch.float64)
     vertices = torch.arange(0, verts)
-    vertices = F.one_hot(vertices, num_classes=verts)
+    vertices = F.one_hot(vertices, num_classes=verts).float()
 
     _, all_edges = generate_random_edges(verts, num_rand_edges)
     edges_transposed = torch.tensor(np.array(list(map(list, generate_undirected_graph(all_edges)))))
