@@ -23,4 +23,4 @@ class ReplayBuffer:
             if old_iterations % self.invalidate_duration == 0:
                 self.buffer = [GraphState() for _ in range(self.size)]
 
-            return self.buffer[old_iterations - 1 % len(self.buffer)]
+            return self.buffer[(old_iterations - 1) % len(self.buffer)]

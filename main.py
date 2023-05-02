@@ -1,12 +1,13 @@
 import torch
 import torch_geometric as pyg
 import networkx as nx
-import matplotlib
+import matplotlib.pyplot as plt
 
 from data import load_corpus
 from model import DeepHamModel, DeepHamLoss
 from torch.distributions import Categorical
 from GraphState import GraphState, Reward
+from ReplayBuffer import ReplayBuffer
 
 DATA_PATH = './data'
 LEARNING_RATE = 0.001
@@ -21,7 +22,7 @@ def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Opt
     # Clear gradients
     optimizer.zero_grad()
 
-    state: GraphState = env.reset(new_graph=False)
+    state: GraphState = env.reset(new_graph=True)
 
     rewards: list[Reward] = []
     log_probs: list[torch.Tensor] = []
@@ -59,15 +60,20 @@ def main():
     graph = env.graph.clone()  # type: ignore
     model.train()
 
-    for i in range(N_EPISODES):
+    # for i in range(N_EPISODES):
+    lengths = []
+    for i, env in enumerate(ReplayBuffer(N_EPISODES)):
         loss = run_episode(model, env, optimizer, criterion)
+        lengths.append(len(env.path))
 
         # nx.draw_kamada_kawai(pyg.utils.to_networkx(graph, to_undirected=True), with_labels=True) # type: ignore
 
         if i % PRINT_FREQUENCY == PRINT_FREQUENCY - 1:
             print(f"Epoch {i + 1}: loss = {loss.item()}\t path len = {len(env.path)}\t path = {env.path}")
+    
+    plt.plot(lengths)
     nx.draw_kamada_kawai(pyg.utils.to_networkx(graph, to_undirected=True), with_labels=True) # type: ignore
-    matplotlib.pyplot.show()  # type: ignore
+    plt.show()  # type: ignore
 
 
 if __name__ == "__main__":

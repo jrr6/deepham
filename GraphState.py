@@ -35,7 +35,7 @@ class GraphState:
 
         self.num_vertices = self.graph.x.size()[0]
         self.curr_vertex = torch.zeros(size=(self.num_vertices,))
-        self.path = []
+        self.path = [self.curr_vertex_index]
 
         return self
 
