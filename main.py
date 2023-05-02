@@ -1,13 +1,16 @@
-import torch
-import torch_geometric as pyg
-import networkx as nx
-import matplotlib.pyplot as plt
-
 from data import load_corpus
 from model import DeepHamModel, DeepHamLoss
 from torch.distributions import Categorical
 from GraphState import GraphState, Reward
 from ReplayBuffer import ReplayBuffer
+import matplotlib.pyplot as plt
+import networkx as nx
+import torch_geometric as pyg
+import torch
+import numpy as np
+torch.manual_seed(0)
+np.random.seed(0)
+
 
 DATA_PATH = './data'
 LEARNING_RATE = 0.001
@@ -79,7 +82,8 @@ def main():
             nx_graph = pyg.utils.to_networkx(env.initial_graph, to_undirected=True)  # type: ignore
             color_offset = 50
             colors = [color_offset + env.path.index(v) if v in env.path else 0 for v in list(nx_graph.nodes)]
-            nx.draw_kamada_kawai(nx_graph, with_labels=True, node_color=colors, ax=graph_ax, cmap=plt.cm.Blues) # type: ignore
+            nx.draw_kamada_kawai(nx_graph, with_labels=True, node_color=colors,
+                                 ax=graph_ax, cmap=plt.cm.Blues)  # type: ignore
 
         plt.pause(0.01)
 
