@@ -1,6 +1,8 @@
 import torch
 import torch.nn.functional as F
 import torch_geometric
+from torch_geometric.transforms.add_positional_encoding import AddLaplacianEigenvectorPE
+import torch_geometric.utils
 import numpy as np
 from torch_geometric.data import Data
 from typing import FrozenSet, Callable
@@ -8,9 +10,10 @@ from itertools import combinations
 from tqdm import tqdm
 from pathlib import Path
 from random import randint
+from scipy import sparse as sp
 
 Edge = FrozenSet[int]
-
+POS_ENC_DIM = 20
 
 def generate_undirected_graph(edges: set[Edge]) -> list[list[int]]:
     """
@@ -70,7 +73,11 @@ def generate_hampath_graph(verts: int, num_rand_edges) -> tuple[Data, int]:
 
     _, all_edges, starting_vertex = generate_random_edges(verts, num_rand_edges)
     edges_transposed = torch.tensor(np.array(list(map(list, generate_undirected_graph(all_edges)))))
-    data = Data(x=vertices, edge_index=edges_transposed.t().contiguous())
+    edge_index = edges_transposed.t().contiguous()
+
+    data = Data(edge_index=edge_index, num_nodes=verts)
+    pos_encoder = AddLaplacianEigenvectorPE(POS_ENC_DIM, is_undirected=True, attr_name='x')
+    pos_encoder(data)
     assert data.is_undirected()
 
     return data, starting_vertex
