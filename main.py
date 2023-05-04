@@ -71,7 +71,9 @@ def train_model(visualize=True, notebook=False, random=False):
     model.train()
 
     fig, [loss_ax, length_ax, graph_ax] = plt.subplots(1, 3)
-    
+
+    # env = GraphState() # also set new_graph=True
+    # for i in range(N_EPISODES):
     for i, env in enumerate(ReplayBuffer(N_EPISODES)):
         loss = run_episode(model, env, optimizer, criterion) if not random \
                 else run_random_episode(model, env, optimizer, criterion)

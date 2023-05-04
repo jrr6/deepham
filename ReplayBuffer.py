@@ -2,7 +2,7 @@ from GraphState import GraphState
 
 
 class ReplayBuffer:
-    def __init__(self, max_iterations, size=25, invalidate_duration=10):
+    def __init__(self, max_iterations, size=20, invalidate_duration=4):
         self.max_iterations = max_iterations
         self.buffer = [GraphState() for _ in range(size)]
         self.invalidate_duration = invalidate_duration
@@ -17,10 +17,9 @@ class ReplayBuffer:
         if self.num_iterations > self.max_iterations:
             raise StopIteration
         else:
-            old_iterations = self.num_iterations
             self.num_iterations += 1
 
-            if old_iterations % self.invalidate_duration == 0:
+            if self.num_iterations % (self.size * self.invalidate_duration) == 0:
                 self.buffer = [GraphState() for _ in range(self.size)]
 
-            return self.buffer[(old_iterations - 1) % len(self.buffer)]
+            return self.buffer[(self.num_iterations - 1) % len(self.buffer)]
