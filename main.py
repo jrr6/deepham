@@ -9,6 +9,10 @@ import torch_geometric as pyg
 import torch
 import numpy as np
 from IPython.display import display, clear_output
+from io import TextIOWrapper
+from datetime import datetime
+from typing import Callable
+import os
 torch.manual_seed(0)
 np.random.seed(0)
 
@@ -59,8 +63,28 @@ def run_random_episode(model, env: GraphState, optimizer, criterion) -> torch.Te
         _, _, done, _ = env.step(opt)
     return torch.tensor(0)
 
+def create_log_file() -> TextIOWrapper:
+    if not os.path.exists("logs"):
+        os.mkdir("logs")
+    return open(f"logs/log{str(datetime.today().replace(microsecond=0)).replace(' ', '_')}.txt", "w")
+
+def write_log_file(file: TextIOWrapper) -> Callable[[str], None]:
+    def write_fn(msg: str) -> None:
+        file.write(msg + "\n")
+        file.flush()
+    return write_fn
+
+def close_log_file(file: TextIOWrapper) -> None:
+    file.close()
+
 def train_model(visualize=True, notebook=False, random=False):
     # corpus = load_corpus(DATA_PATH)
+
+    if notebook:
+        log_file = create_log_file()
+        log_fn = write_log_file(log_file)
+    else:
+        log_fn = print
 
     model = DeepHamModel()
     criterion = DeepHamLoss()
@@ -69,6 +93,8 @@ def train_model(visualize=True, notebook=False, random=False):
     lengths = []
     losses = []
     model.train()
+
+    log_fn("Starting training..." if not random else "Starting random simulation...")
 
     fig, [loss_ax, length_ax, graph_ax] = plt.subplots(1, 3)
 
@@ -83,7 +109,7 @@ def train_model(visualize=True, notebook=False, random=False):
 
         if i % PRINT_FREQUENCY == PRINT_FREQUENCY - 1:
             # Print epoch info
-            print(f"Epoch {i + 1}: path len = {len(env.path)}\t path = {env.path}")
+            log_fn(f"Epoch {i + 1}: path len = {len(env.path)}\t path = {env.path}")
 
             if visualize:
                 graph_ax.clear()
@@ -120,10 +146,12 @@ def train_model(visualize=True, notebook=False, random=False):
                 clear_output(wait=True)
             plt.pause(0.01)
         
-    print("Mean path length:", np.mean(lengths), "\tMean length among last 250:", np.mean(lengths[:-250]))
+    log_fn(f"Mean path length: {np.mean(lengths)}\tMean length among last 250: {np.mean(lengths[:-250])}")
+    if notebook:
+        close_log_file(log_file)  # type: ignore
 
 def main():
-    train_model()
+    train_model(visualize=True)
 
 if __name__ == "__main__":
     main()
