@@ -13,7 +13,7 @@ from random import randint
 from scipy import sparse as sp
 
 Edge = FrozenSet[int]
-POS_ENC_DIM = 20
+POS_ENC_DIM = 4
 
 def generate_undirected_graph(edges: set[Edge]) -> list[list[int]]:
     """
