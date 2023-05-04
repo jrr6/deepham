@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, GATv2Conv
+from torch_geometric.data import Data
 from GraphState import GraphState, Reward
 from MLP import MLP
 
@@ -15,10 +16,12 @@ EPSILON = np.finfo(np.float32).eps.item()  # avoid-div-by-0 factor
 
 
 class DeepHamModel(nn.Module):
-    def __init__(self,
-                 node_embedding_size: int = 512,
-                 hidden_layer_size: int = 256,
-                 relu_alpha: float = 0.1):
+    def __init__(
+        self,
+        node_embedding_size: int = 512,
+        hidden_layer_size: int = 256,
+        relu_alpha: float = 0.1,
+    ):
         super(DeepHamModel, self).__init__()
         self.actor = DeepHamActor(node_embedding_size, hidden_layer_size, relu_alpha)
         self.critic = DeepHamCritic(node_embedding_size, hidden_layer_size, relu_alpha)
@@ -32,12 +35,12 @@ class DeepHamModel(nn.Module):
 
 
 class DeepHamActor(nn.Module):
-    def __init__(self, node_embedding_size: int = 512, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
+    def __init__(self, node_embedding_size=512, hidden_layer_size=256, relu_alpha=0.1):
         super(DeepHamActor, self).__init__()
 
-        self.conv1 = GCNConv(-1, node_embedding_size)
-        self.conv2 = GCNConv(node_embedding_size, node_embedding_size)
-        self.conv3 = GCNConv(node_embedding_size, node_embedding_size)
+        self.conv1 = GATv2Conv(-1, node_embedding_size)
+        self.conv2 = GATv2Conv(node_embedding_size, node_embedding_size)
+        self.conv3 = GATv2Conv(node_embedding_size, node_embedding_size)
 
         self.predictor = MLP(hidden_layer_size, relu_alpha)
 
@@ -58,13 +61,49 @@ class DeepHamActor(nn.Module):
         return self.predictor(vertex_embeddings, edge_index, current_vertex_idx)
 
 
+class DeepHamSupervised(nn.Module):
+    def __init__(self, node_embedding_size=512, hidden_layer_size=256, relu_alpha=0.1):
+        super(DeepHamSupervised, self).__init__()
+
+        self.conv1 = GATv2Conv(-1, node_embedding_size)
+        self.conv2 = GATv2Conv(node_embedding_size, node_embedding_size)
+        self.conv3 = GATv2Conv(node_embedding_size, node_embedding_size)
+
+        self.mlp = torch.nn.Sequential(
+            torch.nn.Linear(node_embedding_size, hidden_layer_size),
+            torch.nn.LeakyReLU(relu_alpha),
+            torch.nn.Linear(hidden_layer_size, hidden_layer_size),
+            torch.nn.LeakyReLU(relu_alpha),
+            torch.nn.Linear(hidden_layer_size, 1),
+            torch.nn.Softmax(dim=0),
+        )
+
+    def forward(self, graph: Data):
+        vertices = graph.x
+        edge_index = graph.edge_index
+
+        vertex_embeddings: torch.Tensor = self.conv1(vertices, edge_index)
+        vertex_embeddings = vertex_embeddings.tanh()
+        vertex_embeddings = self.conv2(vertex_embeddings, edge_index)
+        vertex_embeddings = vertex_embeddings.tanh()
+        vertex_embeddings = self.conv3(vertex_embeddings, edge_index)
+        vertex_embeddings = vertex_embeddings.tanh()
+
+        return self.mlp(vertex_embeddings)
+
+
 # FIXME: this should be more like the actor? not copy/pasted?
 class DeepHamCritic(nn.Module):
-    def __init__(self, node_embedding_size: int = 512, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
+    def __init__(
+        self,
+        node_embedding_size: int = 512,
+        hidden_layer_size: int = 256,
+        relu_alpha: float = 0.1,
+    ):
         super(DeepHamCritic, self).__init__()
-        self.conv1 = GCNConv(-1, node_embedding_size)
-        self.conv2 = GCNConv(-1, node_embedding_size)
-        self.conv3 = GCNConv(-1, node_embedding_size)
+        self.conv1 = GATv2Conv(-1, node_embedding_size)
+        self.conv2 = GATv2Conv(-1, node_embedding_size)
+        self.conv3 = GATv2Conv(-1, node_embedding_size)
 
         self.dense = nn.Sequential(
             nn.LazyLinear(hidden_layer_size),
@@ -73,7 +112,8 @@ class DeepHamCritic(nn.Module):
             nn.LeakyReLU(relu_alpha),
             nn.Linear(hidden_layer_size, hidden_layer_size),
             nn.LeakyReLU(relu_alpha),
-            nn.Linear(hidden_layer_size, 1))
+            nn.Linear(hidden_layer_size, 1),
+        )
         self.relu_alpha = relu_alpha
 
     def forward(self, state):
@@ -93,18 +133,21 @@ class DeepHamCritic(nn.Module):
         # print(output)
         return output
 
+
 # References:
 # https://github.com/pytorch/examples/blob/main/reinforcement_learning/actor_critic.py
 # https://github.com/yc930401/Actor-Critic-pytorch/blob/master/Actor-Critic.py
 
 
 class DeepHamLoss(nn.Module):
-    def forward(self,
-                log_probs: list[torch.Tensor],
-                values: list[torch.Tensor],
-                rewards: list[Reward],
-                gamma: float = 0.99) -> torch.Tensor:
-        discounted_reward: float = 0.
+    def forward(
+        self,
+        log_probs: list[torch.Tensor],
+        values: list[torch.Tensor],
+        rewards: list[Reward],
+        gamma: float = 0.99,
+    ) -> torch.Tensor:
+        discounted_reward: float = 0.0
         discounted_rewards: list[float] = []
         for reward in rewards[::-1]:
             discounted_reward = reward + gamma * discounted_reward
@@ -117,7 +160,7 @@ class DeepHamLoss(nn.Module):
         actor_losses: list[torch.Tensor] = []
         critic_losses: list[torch.Tensor] = []
 
-        for (log_prob, value, dr) in zip(log_probs, values, dr_tensor):
+        for log_prob, value, dr in zip(log_probs, values, dr_tensor):
             advantage = dr - value
             actor_losses.append(-log_prob * advantage.detach())
             # TODO: maybe come back to this
