@@ -63,8 +63,8 @@ class DeepHamCritic(nn.Module):
     def __init__(self, node_embedding_size: int = 512, hidden_layer_size: int = 256, relu_alpha: float = 0.1):
         super(DeepHamCritic, self).__init__()
         self.conv1 = GCNConv(-1, node_embedding_size)
-        self.conv2 = GCNConv(-1, node_embedding_size)
-        self.conv3 = GCNConv(-1, node_embedding_size)
+        self.conv2 = GCNConv(node_embedding_size, node_embedding_size)
+        self.conv3 = GCNConv(node_embedding_size, node_embedding_size)
 
         self.dense = nn.Sequential(
             nn.LazyLinear(hidden_layer_size),
