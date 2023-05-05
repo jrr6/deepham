@@ -80,7 +80,7 @@ def close_log_file(file: TextIOWrapper) -> None:
 def train_model(visualize=True, notebook=False, random=False):
     # corpus = load_corpus(DATA_PATH)
 
-    if notebook:
+    if notebook and visualize:
         log_file = create_log_file()
         log_fn = write_log_file(log_file)
     else:
@@ -147,7 +147,7 @@ def train_model(visualize=True, notebook=False, random=False):
             plt.pause(0.01)
         
     log_fn(f"Mean path length: {np.mean(lengths)}\tMean length among last 250: {np.mean(lengths[:-250])}")
-    if notebook:
+    if notebook and visualize:
         close_log_file(log_file)  # type: ignore
 
 def main():
