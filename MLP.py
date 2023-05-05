@@ -26,7 +26,9 @@ class Mask(nn.Module):
 
         # compute neighbors for the inputted vertex using the edges
         indices, _, _, _, = k_hop_subgraph(int(vertex), 1, edge_index)
-        mask = torch.ones(logits.shape[0]) * float('-inf')
+        #FIXME: this duplicates main.py
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        mask = torch.ones(logits.shape[0]).to(device) * float('-inf')
         mask = mask.scatter(0, indices, 0)
         mask[vertex] = float('-inf')
         mask = mask.reshape(-1, 1)
