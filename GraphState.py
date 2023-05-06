@@ -41,10 +41,12 @@ class GraphState:
 
     def step(self, action_idx: int) -> tuple[GraphState, Reward, IsDone, IsTruncated]:
         # Check if it is valid to move from current_vertex to action
-        edge = torch.Tensor([[action_idx, self.curr_vertex_index]]).T
+        # FIXME: this duplicates main.py
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        edge = torch.Tensor([[action_idx, self.curr_vertex_index]]).to(device).T
 
         if not (self.curr_vertex_index == -1 or
-                torch.all(np.equal(self.graph.edge_index, edge), dim=0).any().item()):  # type: ignore
+                torch.all(torch.eq(self.graph.edge_index, edge), dim=0).any().item()):  # type: ignore
             raise RuntimeError(
                 f"Tried to step to non-adjacent vertex {action_idx} from vertex {self.curr_vertex_index}")
 
@@ -61,6 +63,7 @@ class GraphState:
             self.graph.edge_index != self.curr_vertex_index).item()  # type: ignore
 
         reward = len(self.path)  # TODO: Implement Reward
+        # reward = len(self.path) // 5 if len(self.path) % 5 == 0 else 0
         isDone = len(self.path) == self.num_vertices or is_curr_vertex_isolated
         isTruncated = isDone and len(self.path) != self.num_vertices
 

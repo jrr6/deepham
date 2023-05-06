@@ -22,6 +22,7 @@ LEARNING_RATE = 0.001
 N_EPISODES = 500
 PRINT_FREQUENCY = 10
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Optimizer, criterion: DeepHamLoss):
     # Clear gradients
@@ -36,6 +37,7 @@ def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Opt
     done = False
 
     while not done:
+        state.graph = state.graph.to(device)
         probs, value = model(state)  # Perform a single forward pass.
         distribution = Categorical(probs.t())
         # Singleton tensor
@@ -56,12 +58,13 @@ def run_random_episode(model, env: GraphState, optimizer, criterion) -> torch.Te
     env = env.reset(new_graph=False)
     done = False
     while not done:
+        env.graph = env.graph.to(device)
         options, _, _, _ = pyg.utils.k_hop_subgraph(int(env.curr_vertex_index), 1, env.graph.edge_index)  # type: ignore
-        options = options.detach().numpy()
+        options = options.detach().cpu().numpy()
         options = np.delete(options, np.where(options == int(env.curr_vertex_index)))
         opt = np.random.choice(options).item()
         _, _, done, _ = env.step(opt)
-    return torch.tensor(0)
+    return torch.tensor(0).to(device)
 
 def create_log_file() -> TextIOWrapper:
     if not os.path.exists("logs"):
@@ -86,8 +89,8 @@ def train_model(visualize=True, notebook=False, random=False):
     else:
         log_fn = print
 
-    model = DeepHamModel()
-    criterion = DeepHamLoss()
+    model = DeepHamModel().to(device)
+    criterion = DeepHamLoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     lengths = []
@@ -105,7 +108,7 @@ def train_model(visualize=True, notebook=False, random=False):
                 else run_random_episode(model, env, optimizer, criterion)
 
         lengths.append(len(env.path))
-        losses.append(loss.detach().numpy())
+        losses.append(loss.detach().cpu().numpy())
 
         if i % PRINT_FREQUENCY == PRINT_FREQUENCY - 1:
             # Print epoch info
