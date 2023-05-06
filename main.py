@@ -122,6 +122,7 @@ def run_batch(
         labels.append(int(label))
         outputs.append(probs)
 
+    # FIXME: memory leak here
     loss = criterion(
         torch.log(torch.stack(outputs)), torch.Tensor(labels).reshape(-1, 1).long()
     )
