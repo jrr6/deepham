@@ -84,7 +84,7 @@ def train_model(visualize=True, notebook=False, random=False, episodes=500,
                 use_replay=True, num_verts=30, num_edges=15, delta_e=10):
     # corpus = load_corpus(DATA_PATH)
 
-    if notebook and visualize:
+    if notebook:
         log_file = create_log_file()
         log_fn = write_log_file(log_file)
     else:
@@ -155,7 +155,7 @@ def train_model(visualize=True, notebook=False, random=False, episodes=500,
             plt.pause(0.01)
         
     log_fn(f"Mean path length: {np.mean(lengths)}\tMean length among last 250: {np.mean(lengths[:-250])}")
-    if notebook and visualize:
+    if notebook:
         close_log_file(log_file)  # type: ignore
 
 def main():
