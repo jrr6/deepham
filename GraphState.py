@@ -14,22 +14,28 @@ IsTruncated = bool
 
 
 class GraphState:
-    def __init__(self, graph: None | Data = None, starting_vertex_index: None | int = None):
+    def __init__(self, graph: None | Data = None, starting_vertex_index: None | int = None,
+                 num_verts: int = 30, num_edges: int = 20, delta_e: int = 15,
+                 regenerate_graphs: bool = True):
         assert graph is None and starting_vertex_index is None or graph is not None and starting_vertex_index is not None
 
+        self.regenerate_graphs = regenerate_graphs
+        self.num_edges = num_edges
+        self.delta_e = delta_e
         if graph is None and starting_vertex_index is None:
-            self.initial_graph, self.initial_vertex_index = generate_semirandom_hampath_graph(30, 0, 10, 10)
+            self.num_vertices = num_verts
+            self.initial_graph, self.initial_vertex_index = generate_semirandom_hampath_graph(num_verts, 0, self.num_edges, self.delta_e)
         elif graph is not None and starting_vertex_index is not None:
             self.initial_graph, self.initial_vertex_index = graph, starting_vertex_index
         else:
             raise RuntimeError(
                 "Either both graph and starting vertex should be specified or both should not be specified")
 
-        self.reset(new_graph=False)
+        self.reset()
 
-    def reset(self, new_graph=True) -> GraphState:
-        if new_graph:
-            self.graph, self.curr_vertex_index = generate_semirandom_hampath_graph(30, 0, 10, 10)
+    def reset(self) -> GraphState:
+        if self.regenerate_graphs:
+            self.graph, self.curr_vertex_index = generate_semirandom_hampath_graph(self.num_vertices, 0, self.num_edges, self.delta_e)
         else:
             self.graph, self.curr_vertex_index = self.initial_graph.clone(), self.initial_vertex_index
 

@@ -28,7 +28,7 @@ def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Opt
     # Clear gradients
     optimizer.zero_grad()
 
-    state: GraphState = env.reset(new_graph=False)
+    state: GraphState = env.reset()
 
     rewards: list[Reward] = []
     log_probs: list[torch.Tensor] = []
@@ -97,7 +97,9 @@ def train_model(visualize=True, notebook=False, random=False):
     losses = []
     model.train()
 
-    log_fn("Starting training..." if not random else "Starting random simulation...")
+    env = GraphState(num_verts=50, num_edges=30, delta_e=20)
+    log_fn(f"Starting training:\tverts = {env.num_vertices}\tedges = {env.num_edges}\tdelta_e = {env.delta_e}" if not random
+           else "Starting random simulation...")
 
     fig, [loss_ax, length_ax, graph_ax] = plt.subplots(1, 3)
 
