@@ -58,12 +58,13 @@ def run_random_episode(model, env: GraphState, optimizer, criterion) -> torch.Te
     env = env.reset(new_graph=False)
     done = False
     while not done:
+        env.graph = env.graph.to(device)
         options, _, _, _ = pyg.utils.k_hop_subgraph(int(env.curr_vertex_index), 1, env.graph.edge_index)  # type: ignore
-        options = options.detach().numpy()
+        options = options.detach().cpu().numpy()
         options = np.delete(options, np.where(options == int(env.curr_vertex_index)))
         opt = np.random.choice(options).item()
         _, _, done, _ = env.step(opt)
-    return torch.tensor(0)
+    return torch.tensor(0).to(device)
 
 def create_log_file() -> TextIOWrapper:
     if not os.path.exists("logs"):
