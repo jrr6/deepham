@@ -10,7 +10,6 @@ from itertools import combinations
 from tqdm import tqdm
 from pathlib import Path
 from random import randint
-from scipy import sparse as sp
 
 Edge = FrozenSet[int]
 POS_ENC_DIM = 4

@@ -14,14 +14,14 @@ Vertex = torch.Tensor
 EPSILON = np.finfo(np.float32).eps.item()  # avoid-div-by-0 factor
 
 
-class DeepHamModel(nn.Module):
+class DeepHamAgent(nn.Module):
     def __init__(
         self,
         node_embedding_size: int = 512,
         hidden_layer_size: int = 256,
         relu_alpha: float = 0.1,
     ):
-        super(DeepHamModel, self).__init__()
+        super(DeepHamAgent, self).__init__()
         self.actor = DeepHamActor(node_embedding_size, hidden_layer_size, relu_alpha)
         self.critic = DeepHamCritic(node_embedding_size, hidden_layer_size, relu_alpha)
 

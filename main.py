@@ -1,5 +1,5 @@
 from data import load_corpus
-from model import DeepHamModel, DeepHamLoss
+from model import DeepHamAgent, DeepHamLoss
 from torch.distributions import Categorical
 from GraphState import GraphState, Reward
 from ReplayBuffer import ReplayBuffer
@@ -24,7 +24,7 @@ PRINT_FREQUENCY = 10
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Optimizer, criterion: DeepHamLoss):
+def run_episode(model: DeepHamAgent, env: GraphState, optimizer: torch.optim.Optimizer, criterion: DeepHamLoss):
     # Clear gradients
     optimizer.zero_grad()
 
@@ -55,7 +55,7 @@ def run_episode(model: DeepHamModel, env: GraphState, optimizer: torch.optim.Opt
     return loss
 
 def run_random_episode(model, env: GraphState, optimizer, criterion) -> torch.Tensor:
-    env = env.reset(new_graph=False)
+    env = env.reset()
     done = False
     while not done:
         env.graph = env.graph.to(device)
@@ -89,7 +89,7 @@ def train_model(visualize=True, notebook=False, random=False):
     else:
         log_fn = print
 
-    model = DeepHamModel().to(device)
+    model = DeepHamAgent().to(device)
     criterion = DeepHamLoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
