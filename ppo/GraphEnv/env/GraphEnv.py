@@ -7,35 +7,53 @@ from torch_geometric.data import Data
 from data import generate_semirandom_hampath_graph
 
 
-
 class GraphEnv(gym.Env):
     def __init__(
-        self, graph: Data | None = None, starting_vertex_index: int | None = None
+        self,
+        graph: Data | None = None,
+        starting_vertex_index: int | None = None,
+        num_vertices = 30,
+        num_edges = 20,
+        delta_e = 15,
+        regenerate_graph = True
     ):
         super(GraphEnv, self).__init__()
 
+        self.num_vertices = num_vertices
+        self.num_edges = num_edges
+        self.delta_e = delta_e
+        self.regenerate_graph = regenerate_graph
+
         if graph is None:
-            self.initial_graph, self.initial_starting_vertex = generate_semirandom_hampath_graph(30, 0, 15, 10)
+            self.initial_graph, self.initial_starting_vertex = generate_semirandom_hampath_graph(self.num_vertices, 0, self.num_edges, self.delta_e)
         else:
             self.initial_graph, self.initial_starting_vertex = graph, starting_vertex_index
 
-        self.num_vertices = self.initial_graph.x.size()[0]
+        self.edge_observation_size = self.initial_graph.edge_index.size()[1]
 
+        # self.action_space = spaces.Discrete(self.num_vertices)
+        # self.observation_space = spaces.Dict({
+        #     "x": spaces.Box(low=float("-inf"), high=float("inf"), shape=(self.num_vertices, 4)),
+        #     "edge_index": spaces.Box(low=0, high=self.num_vertices, shape=(2, self.edge_observation_size), dtype=np.int64),
+        #     "current_vertex": spaces.Discrete(self.num_vertices)
+        # })
 
-        self.action_space = spaces.Discrete(self.num_vertices)
-        self.observation_space = spaces.Dict({
-            "x": spaces.Box(low=0, high=1, shape=(self.num_vertices, self.num_vertices)),
-            "edge_index": spaces.Box(low=0, high=self.num_vertices, shape=(2,)),
-            "current_vertex": spaces.Discrete(self.num_vertices)
-        })
-
-    def reset(self, new_graph=False):
-        if new_graph:
-            self.graph, self.current_vertex = generate_semirandom_hampath_graph(30, 0, 15, 10)
+    def reset(self, seed=None, options=None):
+        if self.regenerate_graph:
+            self.graph, self.current_vertex = generate_semirandom_hampath_graph(self.num_vertices, 0, self.num_edges, self.delta_e)
         else:
             self.graph, self.current_vertex = self.initial_graph.clone(), self.initial_starting_vertex
 
         self.path = [self.current_vertex]
+
+        self.edge_observation_size = self.initial_graph.edge_index.size()[1]
+        self.action_space = spaces.Discrete(self.num_vertices)
+        self.observation_space = spaces.Dict({
+            "x": spaces.Box(low=float("-inf"), high=float("inf"), shape=(self.num_vertices, 4)),
+            "edge_index": spaces.Box(low=0, high=self.num_vertices, shape=(2, self.edge_observation_size), dtype=np.int64),
+            "current_vertex": spaces.Discrete(self.num_vertices)
+        })
+
 
         observation, info = self._get_obs(), self._get_info()
         return observation, info
@@ -65,7 +83,7 @@ class GraphEnv(gym.Env):
         return observation, reward, terminated, info
 
     def _get_obs(self):
-        return {"x": self.graph.x, "edge_index": self.graph.edge_index, "current_vertex": self.current_vertex}
+        return {"x": self.graph.x.numpy(), "edge_index": self.graph.edge_index.numpy(), "current_vertex": self.current_vertex}
 
     def _get_info(self):
         return {}

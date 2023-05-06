@@ -1,8 +1,6 @@
 import torch
 import torch.nn.functional as F
-import torch_geometric
 from torch_geometric.transforms.add_positional_encoding import AddLaplacianEigenvectorPE
-import torch_geometric.utils
 import numpy as np
 from torch_geometric.data import Data
 from typing import FrozenSet, Callable
@@ -10,7 +8,6 @@ from itertools import combinations
 from tqdm import tqdm
 from pathlib import Path
 from random import randint
-from scipy import sparse as sp
 
 Edge = FrozenSet[int]
 POS_ENC_DIM = 4
