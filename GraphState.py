@@ -37,6 +37,7 @@ class GraphState:
     def reset(self) -> GraphState:
         if self.regenerate_graphs:
             self.graph, self.curr_vertex_index = generate_semirandom_hampath_graph(self.num_vertices, 0, self.num_edges, self.delta_e)
+            self.initial_graph = self.graph.clone()  # lets us draw the current graph
         else:
             self.graph, self.curr_vertex_index = self.initial_graph.clone(), self.initial_vertex_index
 
