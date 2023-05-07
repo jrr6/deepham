@@ -49,6 +49,8 @@ class GraphEnv(gym.Env):
 
         self.edge_observation_size = self.initial_graph.edge_index.size()[1]
 
+        print(f"Old: {self.graph.edge_index}")
+
         observation, info = self._get_obs(), self._get_info()
         return observation, info
 
