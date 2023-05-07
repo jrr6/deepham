@@ -1,15 +1,22 @@
 import GraphEnv # ! Do not remove this import, this is required for the custom OpenAI gym environment
 import torch
 
+from collections import defaultdict
 from DenseToSparseTransform import DenseToSparseTransform
 from model import DeepHamActor, DeepHamCritic
 from tensordict.nn import TensorDictModule
 from torch.distributions import Categorical
+from torchrl.collectors import SyncDataCollector
+from torchrl.data.replay_buffers import ReplayBuffer
+from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
+from torchrl.data.replay_buffers.storages import LazyTensorStorage
 from torchrl.envs import TransformedEnv
 from torchrl.envs.libs.gym import GymEnv
+from torchrl.envs.utils import ExplorationType, set_exploration_type
 from torchrl.modules import ProbabilisticActor, ValueOperator
 from torchrl.objectives import ClipPPOLoss
 from torchrl.objectives.value import GAE
+from tqdm import tqdm
 
 # PyTorch Parameters
 device = "cuda" if torch.has_cuda else "cpu"
@@ -20,33 +27,30 @@ print(f"Detected Device: {torch.cuda.get_device_name(0) if torch.has_cuda else '
 LEARNING_RATE = 1e-3
 MAX_GRAD_NORM = 1
 
-SUB_BATCH_SIZE = 64
+SUB_BATCH_SIZE = 10
 NUM_EPOCHS = 10
 PPO_CLIP_FACTOR = 0.2
 DISCOUNT_FACTOR = 0.99
 LAMBDA = 0.95
 ENTROPY_EPSILON = 1e-4
+
+FRAME_SKIP = 0
+FRAMES_PER_BATCH = 30
+TOTAL_FRAMES = 300
 #
 
 # Step (1): Define an Environment
 kwargs = {"num_vertices": 10, "num_edges": 5, "delta_e": 0, "regenerate_graph": True}
 base_env = GymEnv("GraphEnv/GraphEnv-v0", **kwargs)
-env = TransformedEnv(
-    base_env,
-    DenseToSparseTransform(in_keys=["edge_index"], out_keys=["edge_index"])
-)
+env = TransformedEnv(base_env, DenseToSparseTransform(in_keys=["edge_index"], out_keys=["edge_index"]))
+###
 
 # Step (2): Initialize Actor (Policy) and Critic (Value) Networks
-
 actor_net = DeepHamActor()
 critic_net = DeepHamCritic()
 
-policy_module = TensorDictModule(
-    actor_net, in_keys=["x", "edge_index", "current_vertex"], out_keys=["probs"],
-)
-
 policy_module = ProbabilisticActor(
-    module=policy_module, # type: ignore
+    module = TensorDictModule(actor_net, in_keys=["x", "edge_index", "current_vertex"], out_keys=["probs"]),
     spec=env.action_spec,
     in_keys=["probs"],
     distribution_class=Categorical,
@@ -57,28 +61,28 @@ value_module = ValueOperator(
     module=critic_net,
     in_keys=["x", "edge_index"]
 )
+###
 
-state = env.reset()
-print(state["current_vertex"])
+# Step (3): Initialize the parameters of the models
+policy_module(env.reset())
+value_module(env.reset())
+###
 
-print(policy_module(state))
-print(value_module(state))
+advantage_module = GAE(
+    gamma=DISCOUNT_FACTOR, lmbda=LAMBDA, value_network=value_module, average_gae=True
+)
 
-# advantage_module = GAE(
-#     gamma=DISCOUNT_FACTOR, lmbda=LAMBDA, value_network=value_module, average_gae=True
-# )
+loss_module = ClipPPOLoss(
+    actor=policy_module,
+    critic=value_module,
+    advantage_key="advantage",
+    clip_epsilon=PPO_CLIP_FACTOR,
+    entropy_bonus=bool(ENTROPY_EPSILON),
+    entropy_coef=ENTROPY_EPSILON,
+    value_target_key=advantage_module.value_target_key,
+    critic_coef=1.0,
+    gamma=0.99,
+    loss_critic_type="smooth_l1",
+)
 
-# loss_module = ClipPPOLoss(
-#     actor=policy_module,
-#     critic=value_module,
-#     advantage_key="advantage",
-#     clip_epsilon=PPO_CLIP_FACTOR,
-#     entropy_bonus=bool(ENTROPY_EPSILON),
-#     entropy_coef=ENTROPY_EPSILON,
-#     value_target_key=advantage_module.value_target_key,
-#     critic_coef=1.0,
-#     gamma=0.99,
-#     loss_critic_type="smooth_l1",
-# )
-
-# optim = torch.optim.Adam(loss_module.parameters(), LEARNING_RATE)
+optim = torch.optim.Adam(loss_module.parameters(), LEARNING_RATE)
