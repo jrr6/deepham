@@ -10,6 +10,7 @@ from io import TextIOWrapper
 from itertools import repeat
 from IPython.display import display, clear_output
 from model import DeepHamActor, DeepHamCritic
+from tensordict import TensorDict
 from tensordict.nn import TensorDictModule
 from torch.distributions import Categorical
 from torch_geometric.utils import k_hop_subgraph
@@ -39,37 +40,35 @@ ENTROPY_EPSILON = 1e-4
 PRINT_FREQUENCY = 10
 #
 
-def run_episode(policy_module, value_module, env: TransformedEnv, optimizer: torch.optim.Optimizer, criterion: ClipPPOLoss) -> torch.Tensor:
-    state = env.reset()
-
-    rewards = []
-    log_probs = []
-    values = []
+def run_episode(policy_module: ProbabilisticActor, advantage_module: GAE, env: TransformedEnv, optimizer: torch.optim.Optimizer, criterion: ClipPPOLoss) -> torch.Tensor:
+    full_state = TensorDict(env.reset())
+    state = full_state
 
     done = state["done"]
     while not done:
         policy_module(state)
-        value_module(state)
-
         state = env.step(state)["next"]
-
         done = state["done"]
 
+    with torch.no_grad():
+        advantage_module(full_state.unsqueeze(0))
+
     optimizer.zero_grad()
-    # loss = criterion(...)
-    # loss.backward()
+    loss = criterion(full_state)
+    loss = loss["loss_objective"] + loss["loss_critic"] + loss["loss_entropy"]
+    loss.backward()
     optimizer.step()
 
-    # return loss
+    return loss
 
-def run_random_episode(policy_module, value_module, env, optimizer, criterion) -> torch.Tensor:
+def run_random_episode(policy_module: ProbabilisticActor, advantage_module: GAE, env: TransformedEnv, optimizer: torch.optim.Optimizer, criterion: ClipPPOLoss) -> torch.Tensor:
     state = env.reset()
     done = state["done"]
 
     while not done:
-        actions, _, _, _ = k_hop_subgraph(state["current_vertex"], 1, state["edge_index"])
+        actions, _, _, _ = k_hop_subgraph(state["current_vertex"], 1, state["edge_index"]) # type: ignore
         actions = actions.detach().cpu().numpy()
-        actions = np.delete(actions, np.where(actions == int(state["current_vertex"])))
+        actions = np.delete(actions, np.where(actions == int(state["current_vertex"]))) # type: ignore
         action = np.random.choice(actions).item()
 
         state, _, done, _ = env.step(action)
@@ -144,9 +143,9 @@ def train_model(visualize=True, notebook=False, random=False, episodes=500, num_
 
     for i, env in enumerate(env_iterator):
         if not random:
-            loss = run_episode(policy_module, value_module, env, optimizer, loss_module)
+            loss = run_episode(policy_module, advantage_module, env, optimizer, loss_module)
         else:
-            loss = run_random_episode(policy_module, value_module, env, optimizer, loss_module)
+            loss = run_random_episode(policy_module, advantage_module, env, optimizer, loss_module)
 
         losses.append(loss.detach().cpu().numpy())
 
@@ -212,9 +211,9 @@ if __name__ == "__main__":
         visualize=False,
         notebook=False,
         random=False,
-        episodes=1,
-        num_verts=6,
-        num_edges=2,
-        delta_e=0,
+        episodes=1000,
+        num_verts=30,
+        num_edges=15,
+        delta_e=10,
         prepopulate=True
     )

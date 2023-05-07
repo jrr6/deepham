@@ -69,8 +69,6 @@ class GraphEnv(gym.Env):
         self.current_vertex = int(action)
         self.path.append(self.current_vertex)
 
-        print(self.current_vertex)
-
         is_curr_vertex_isolated: bool = torch.all(self.graph.edge_index != self.current_vertex).item()  # type: ignore
 
         observation, info = self._get_obs(), self._get_info()

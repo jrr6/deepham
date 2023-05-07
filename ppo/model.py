@@ -34,22 +34,29 @@ class DeepHamCritic(nn.Module):
     def __init__(self):
         super(DeepHamCritic, self).__init__()
         self.seq = Sequential("x, edge_index", [
-            #                     GNN                       #
-            (GATv2Conv(-1,  512),       "x, edge_index -> x"),
-            (torch.nn.Tanh(),           "x             -> x"),
-            (GATv2Conv(512, 512),       "x, edge_index -> x"),
-            (torch.nn.Tanh(),           "x             -> x"),
-            (GATv2Conv(512, 512),       "x, edge_index -> x"),
-            (torch.nn.Tanh(),           "x             -> x"),
-            #                     MLP                       #
-            (torch.nn.Linear(512, 512), "x             -> x"),
-            (torch.nn.LeakyReLU(),      "x             -> x"),
-            (torch.nn.Linear(512, 512), "x             -> x"),
-            (torch.nn.LeakyReLU(),      "x             -> x"),
-            (torch.nn.Linear(512, 1),   "x             -> x"),
+            #                       GNN                          #
+            (GATv2Conv(-1,  512),           "x, edge_index -> x"),
+            (torch.nn.Tanh(),               "x             -> x"),
+            (GATv2Conv(512, 512),           "x, edge_index -> x"),
+            (torch.nn.Tanh(),               "x             -> x"),
+            (GATv2Conv(512, 512),           "x, edge_index -> x"),
+            (torch.nn.Tanh(),               "x             -> x"),
+            (torch.nn.Flatten(start_dim=0), "x             -> x"),
+            #                       MLP                          #
+            (torch.nn.LazyLinear(512),      "x             -> x"),
+            (torch.nn.LeakyReLU(),          "x             -> x"),
+            (torch.nn.Linear(512, 512),     "x             -> x"),
+            (torch.nn.LeakyReLU(),          "x             -> x"),
+            (torch.nn.Linear(512, 1),       "x             -> x"),
         ])
 
     def forward(self, x, edge_index):
+        if len(x.size()) == 3 and len(edge_index.size()) == 3 and x.size()[0] == 1 and edge_index.size()[0] == 1:
+            x = x[0]
+            edge_index = edge_index[0]
+
+            return self.seq(x, edge_index)
+
         return self.seq(x, edge_index)
 
 
