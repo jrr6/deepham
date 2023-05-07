@@ -32,11 +32,11 @@ class GraphEnv(gym.Env):
 
         self.edge_observation_size = self.initial_graph.edge_index.size()[1]
 
-        self.action_space = spaces.Discrete(self.num_vertices)
+        self.action_space = spaces.Box(low=0, high=self.num_vertices, shape=[])
         self.observation_space = spaces.Dict({
             "x": spaces.Box(low=float("-inf"), high=float("inf"), shape=(self.num_vertices, 4)),
             "edge_index": spaces.Box(low=0, high=self.num_vertices, shape=(self.num_vertices, self.num_vertices), dtype=np.int64),
-            "current_vertex": spaces.Box(low=-1, high=self.num_vertices, shape=(1,), dtype=np.int64)
+            "current_vertex": spaces.Box(low=-1, high=self.num_vertices, shape=[], dtype=np.int64)
         })
 
     def reset(self, seed=None, options=None):
@@ -52,9 +52,9 @@ class GraphEnv(gym.Env):
         observation, info = self._get_obs(), self._get_info()
         return observation, info
 
-    def step(self, action: int):
+    def step(self, action: np.ndarray):
         # Check if it is valid to move from current_vertex to action
-        edge = torch.Tensor([[action, self.current_vertex]]).T
+        edge = torch.Tensor([[int(action), self.current_vertex]]).T
 
         if not (torch.all(np.equal(self.graph.edge_index, edge), dim=0).any().item()):  # type: ignore
             raise RuntimeError(
@@ -62,13 +62,16 @@ class GraphEnv(gym.Env):
 
         # Remove all the edges from current_vertex in the graph so we don't revisit it
         not_adjacent_to_old_vertex = torch.all(self.graph.edge_index != self.current_vertex, dim=0)
+
         self.graph = Data(x=self.graph.x, edge_index=self.graph.edge_index[:, not_adjacent_to_old_vertex])
 
         # Update the current_vertex
-        self.current_vertex = action
+        self.current_vertex = int(action)
         self.path.append(self.current_vertex)
 
-        is_curr_vertex_isolated: bool = torch.all(self.graph.edge_index != self.curr_vertex_index).item()  # type: ignore
+        print(self.current_vertex)
+
+        is_curr_vertex_isolated: bool = torch.all(self.graph.edge_index != self.current_vertex).item()  # type: ignore
 
         observation, info = self._get_obs(), self._get_info()
         reward = len(self.path)

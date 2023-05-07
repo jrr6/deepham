@@ -153,7 +153,7 @@ def train_model(visualize=True, notebook=False, random=False, episodes=500,
                 display(fig)
                 clear_output(wait=True)
             plt.pause(0.000001)
-        
+
     log_fn(f"Mean path length: {np.mean(lengths)}\tMean length among last 250: {np.mean(lengths[:-250])}\tlast 500: {np.mean(lengths[:-500])}")
     if notebook:
         close_log_file(log_file)  # type: ignore
