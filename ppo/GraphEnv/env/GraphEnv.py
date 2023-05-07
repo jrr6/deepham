@@ -4,6 +4,7 @@ import torch
 
 from gym import spaces
 from torch_geometric.data import Data
+from torch_geometric.utils import to_dense_adj
 from data import generate_semirandom_hampath_graph
 
 
@@ -31,12 +32,12 @@ class GraphEnv(gym.Env):
 
         self.edge_observation_size = self.initial_graph.edge_index.size()[1]
 
-        # self.action_space = spaces.Discrete(self.num_vertices)
-        # self.observation_space = spaces.Dict({
-        #     "x": spaces.Box(low=float("-inf"), high=float("inf"), shape=(self.num_vertices, 4)),
-        #     "edge_index": spaces.Box(low=0, high=self.num_vertices, shape=(2, self.edge_observation_size), dtype=np.int64),
-        #     "current_vertex": spaces.Discrete(self.num_vertices)
-        # })
+        self.action_space = spaces.Discrete(self.num_vertices)
+        self.observation_space = spaces.Dict({
+            "x": spaces.Box(low=float("-inf"), high=float("inf"), shape=(self.num_vertices, 4)),
+            "edge_index": spaces.Box(low=0, high=self.num_vertices, shape=(self.num_vertices, self.num_vertices), dtype=np.int64),
+            "current_vertex": spaces.Discrete(self.num_vertices)
+        })
 
     def reset(self, seed=None, options=None):
         if self.regenerate_graph:
@@ -47,13 +48,6 @@ class GraphEnv(gym.Env):
         self.path = [self.current_vertex]
 
         self.edge_observation_size = self.initial_graph.edge_index.size()[1]
-        self.action_space = spaces.Discrete(self.num_vertices)
-        self.observation_space = spaces.Dict({
-            "x": spaces.Box(low=float("-inf"), high=float("inf"), shape=(self.num_vertices, 4)),
-            "edge_index": spaces.Box(low=0, high=self.num_vertices, shape=(2, self.edge_observation_size), dtype=np.int64),
-            "current_vertex": spaces.Discrete(self.num_vertices)
-        })
-
 
         observation, info = self._get_obs(), self._get_info()
         return observation, info
@@ -83,7 +77,11 @@ class GraphEnv(gym.Env):
         return observation, reward, terminated, info
 
     def _get_obs(self):
-        return {"x": self.graph.x.numpy(), "edge_index": self.graph.edge_index.numpy(), "current_vertex": self.current_vertex}
+        return {
+            "x": self.graph.x.numpy(),
+            "edge_index": to_dense_adj(self.graph.edge_index, max_num_nodes=self.num_vertices),
+            "current_vertex": self.current_vertex
+        }
 
     def _get_info(self):
         return {}

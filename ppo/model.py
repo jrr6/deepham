@@ -22,11 +22,11 @@ class DeepHamActor(nn.Module):
             (nn.LeakyReLU(),            "x                             -> x"),
             (nn.Linear(512, 512),       "x                             -> x"),
             (Mask(),                    "x, edge_index, current_vertex -> x"),
-            (nn.Softmax(dim=0),         "x                             -> x")
+            (nn.Softmax(dim=0),         "x                             -> x"),
         ])
 
     def forward(self, x, edge_index, current_vertex):
-        return self.seq(x, edge_index, current_vertex)
+        return self.seq(x, edge_index, current_vertex).reshape((x.size()[0],))
 
 class DeepHamCritic(nn.Module):
     def __init__(self):
