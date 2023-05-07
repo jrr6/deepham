@@ -1,6 +1,8 @@
 import GraphEnv # ! Do not remove this import, this is required for the custom OpenAI gym environment
 import torch
+import torch_geometric as pyg
 import matplotlib.pyplot as plt
+import networkx as nx
 import numpy as np
 import os
 
@@ -148,6 +150,7 @@ def train_model(visualize=True, notebook=False, random=False, episodes=500, num_
             loss = run_random_episode(policy_module, advantage_module, env, optimizer, loss_module)
 
         losses.append(loss.detach().cpu().numpy())
+        lengths.append(len(env.path))
 
         if i % PRINT_FREQUENCY == PRINT_FREQUENCY - 1:
             log_fn(f"Episode {i + 1}: path len = {len(env.path)}\t path = {env.path}")
@@ -208,11 +211,11 @@ def close_log_file(file: TextIOWrapper) -> None:
 
 if __name__ == "__main__":
     train_model(
-        visualize=False,
+        visualize=True,
         notebook=False,
         random=False,
         episodes=1000,
-        num_verts=30,
+        num_verts=50,
         num_edges=15,
         delta_e=10,
         prepopulate=True
