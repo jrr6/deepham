@@ -12,6 +12,7 @@ from IPython.display import display, clear_output
 from io import TextIOWrapper
 from datetime import datetime
 from typing import Callable
+from itertools import repeat
 import os
 torch.manual_seed(0)
 np.random.seed(0)
@@ -19,7 +20,6 @@ np.random.seed(0)
 
 DATA_PATH = './data'
 LEARNING_RATE = 0.001
-N_EPISODES = 500
 PRINT_FREQUENCY = 10
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -80,7 +80,8 @@ def write_log_file(file: TextIOWrapper) -> Callable[[str], None]:
 def close_log_file(file: TextIOWrapper) -> None:
     file.close()
 
-def train_model(visualize=True, notebook=False, random=False):
+def train_model(visualize=True, notebook=False, random=False, episodes=500,
+                use_replay=True, num_verts=30, num_edges=15, delta_e=10):
     # corpus = load_corpus(DATA_PATH)
 
     if notebook and visualize:
@@ -97,15 +98,17 @@ def train_model(visualize=True, notebook=False, random=False):
     losses = []
     model.train()
 
-    env = GraphState(num_verts=50, num_edges=30, delta_e=20)
+    env = GraphState(num_verts=num_verts, num_edges=num_edges, delta_e=delta_e)
     log_fn(f"Starting training:\tverts = {env.num_vertices}\tedges = {env.num_edges}\tdelta_e = {env.delta_e}" if not random
            else "Starting random simulation...")
 
     fig, [loss_ax, length_ax, graph_ax] = plt.subplots(1, 3)
 
-    # env = GraphState() # also set new_graph=True
-    # for i in range(N_EPISODES):
-    for i, env in enumerate(ReplayBuffer(N_EPISODES)):
+    if use_replay:
+        env_iterator = ReplayBuffer(episodes, num_verts=num_verts, num_edges=num_edges, delta_e=delta_e)
+    else:
+        env_iterator = repeat(env, episodes)
+    for i, env in enumerate(env_iterator):
         loss = run_episode(model, env, optimizer, criterion) if not random \
                 else run_random_episode(model, env, optimizer, criterion)
 
