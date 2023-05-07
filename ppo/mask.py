@@ -17,16 +17,13 @@ class Mask(nn.Module):
 
         @returns: a tensor of logits masked to change all non-adjacent vertices to negative infinity
         """
-
         # if at start, no mask
         if vertex == -1:
             return torch.zeros_like(logits)
 
         # compute neighbors for the inputted vertex using the edges
         indices, _, _, _, = k_hop_subgraph(int(vertex), 1, edge_index)
-        #FIXME: this duplicates main.py
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        mask = torch.ones(logits.shape[0]).to(device) * float('-inf')
+        mask = torch.ones(logits.shape[0]) * float('-inf')
         mask = mask.scatter(0, indices, 0)
         mask[vertex] = float('-inf')
         mask = mask.reshape(-1, 1)

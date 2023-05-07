@@ -1,19 +1,19 @@
-import GraphEnv
+import GraphEnv # ! Do not remove this import, this is required for the custom OpenAI gym environment
 import torch
 
 from DenseToSparseTransform import DenseToSparseTransform
 from model import DeepHamActor, DeepHamCritic
 from tensordict.nn import TensorDictModule
 from torch.distributions import Categorical
-from torchrl.envs import TransformedEnv, Compose
+from torchrl.envs import TransformedEnv
 from torchrl.envs.libs.gym import GymEnv
 from torchrl.modules import ProbabilisticActor, ValueOperator
 from torchrl.objectives import ClipPPOLoss
 from torchrl.objectives.value import GAE
 
 # PyTorch Parameters
-device = "cpu" if torch.has_cuda else "cuda"
-print(f"Detected Device: {device}")
+device = "cuda" if torch.has_cuda else "cpu"
+print(f"Detected Device: {torch.cuda.get_device_name(0) if torch.has_cuda else 'cpu'}")
 
 
 # Model Hyperparameters
@@ -42,28 +42,27 @@ actor_net = DeepHamActor()
 critic_net = DeepHamCritic()
 
 policy_module = TensorDictModule(
-    actor_net, in_keys=["observation"], out_keys=["probs"],
+    actor_net, in_keys=["x", "edge_index", "current_vertex"], out_keys=["probs"],
 )
-
 
 policy_module = ProbabilisticActor(
     module=policy_module, # type: ignore
     spec=env.action_spec,
     in_keys=["probs"],
     distribution_class=Categorical,
-    distribution_kwargs=...,
     return_log_prob=True
 )
 
 value_module = ValueOperator(
     module=critic_net,
-    in_keys=["observation"]
+    in_keys=["x", "edge_index"]
 )
 
 state = env.reset()
+print(state["current_vertex"])
 
-print(f"New Edge Index: {state['edge_index']}")
-
+print(policy_module(state))
+print(value_module(state))
 
 # advantage_module = GAE(
 #     gamma=DISCOUNT_FACTOR, lmbda=LAMBDA, value_network=value_module, average_gae=True

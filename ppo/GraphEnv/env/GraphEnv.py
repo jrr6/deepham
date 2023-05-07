@@ -36,7 +36,7 @@ class GraphEnv(gym.Env):
         self.observation_space = spaces.Dict({
             "x": spaces.Box(low=float("-inf"), high=float("inf"), shape=(self.num_vertices, 4)),
             "edge_index": spaces.Box(low=0, high=self.num_vertices, shape=(self.num_vertices, self.num_vertices), dtype=np.int64),
-            "current_vertex": spaces.Discrete(self.num_vertices)
+            "current_vertex": spaces.Box(low=-1, high=self.num_vertices, shape=(1,), dtype=np.int64)
         })
 
     def reset(self, seed=None, options=None):
@@ -48,8 +48,6 @@ class GraphEnv(gym.Env):
         self.path = [self.current_vertex]
 
         self.edge_observation_size = self.initial_graph.edge_index.size()[1]
-
-        print(f"Old: {self.graph.edge_index}")
 
         observation, info = self._get_obs(), self._get_info()
         return observation, info
