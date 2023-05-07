@@ -16,12 +16,13 @@ IsTruncated = bool
 class GraphState:
     def __init__(self, graph: None | Data = None, starting_vertex_index: None | int = None,
                  num_verts: int = 30, num_edges: int = 20, delta_e: int = 15,
-                 regenerate_graphs: bool = True):
+                 regenerate_graphs: bool = True, prepopulate_start=True):
         assert graph is None and starting_vertex_index is None or graph is not None and starting_vertex_index is not None
 
         self.regenerate_graphs = regenerate_graphs
         self.num_edges = num_edges
         self.delta_e = delta_e
+        self.prepopulate_start = prepopulate_start
         if graph is None and starting_vertex_index is None:
             self.num_vertices = num_verts
             self.initial_graph, self.initial_vertex_index = generate_semirandom_hampath_graph(num_verts, 0, self.num_edges, self.delta_e)
@@ -40,8 +41,14 @@ class GraphState:
             self.graph, self.curr_vertex_index = self.initial_graph.clone(), self.initial_vertex_index
 
         self.num_vertices = self.graph.x.size()[0]
-        self.curr_vertex = torch.zeros(size=(self.num_vertices,))
-        self.path = [self.curr_vertex_index]
+        if self.prepopulate_start:
+            # TODO: this is wrong if we're prepopulating
+            self.curr_vertex = torch.zeros(size=(self.num_vertices,))
+            self.path = [self.curr_vertex_index]
+        else:
+            self.curr_vertex_index = -1
+            self.curr_vertex = torch.zeros(size=(self.num_vertices,))
+            self.path = []
 
         return self
 

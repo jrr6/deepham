@@ -81,7 +81,7 @@ def close_log_file(file: TextIOWrapper) -> None:
     file.close()
 
 def train_model(visualize=True, notebook=False, random=False, episodes=500,
-                use_replay=True, num_verts=30, num_edges=15, delta_e=10):
+                use_replay=True, num_verts=30, num_edges=15, delta_e=10, prepopulate_start=True):
     # corpus = load_corpus(DATA_PATH)
 
     if notebook:
@@ -98,16 +98,16 @@ def train_model(visualize=True, notebook=False, random=False, episodes=500,
     losses = []
     model.train()
 
-    env = GraphState(num_verts=num_verts, num_edges=num_edges, delta_e=delta_e)
-    log_fn(f"Starting training:\tverts = {env.num_vertices}\tedges = {env.num_edges}\tdelta_e = {env.delta_e}" if not random
-           else "Starting random simulation...")
+    log_fn(("Starting training" if not random else "Starting random simulation")
+           + f":\tverts = {num_verts}\tedges = {num_edges}\tdelta_e = {delta_e}\tprepopulate_start={prepopulate_start}\tuse_replay={use_replay}")
 
     fig, [loss_ax, length_ax, graph_ax] = plt.subplots(1, 3)
 
     if use_replay:
-        env_iterator = ReplayBuffer(episodes, num_verts=num_verts, num_edges=num_edges, delta_e=delta_e)
+        env_iterator = ReplayBuffer(episodes, num_verts=num_verts, num_edges=num_edges, delta_e=delta_e, prepopulate_start=prepopulate_start)
     else:
-        env_iterator = repeat(env, episodes)
+        init_env = GraphState(num_verts=num_verts, num_edges=num_edges, delta_e=delta_e, regenerate_graphs=True, prepopulate_start=prepopulate_start)
+        env_iterator = repeat(init_env, episodes)
     for i, env in enumerate(env_iterator):
         loss = run_episode(model, env, optimizer, criterion) if not random \
                 else run_random_episode(model, env, optimizer, criterion)
@@ -117,7 +117,7 @@ def train_model(visualize=True, notebook=False, random=False, episodes=500,
 
         if i % PRINT_FREQUENCY == PRINT_FREQUENCY - 1:
             # Print epoch info
-            log_fn(f"Epoch {i + 1}: path len = {len(env.path)}\t path = {env.path}")
+            log_fn(f"Episode {i + 1}: path len = {len(env.path)}\t path = {env.path}")
 
             if visualize:
                 graph_ax.clear()
@@ -159,7 +159,7 @@ def train_model(visualize=True, notebook=False, random=False, episodes=500,
         close_log_file(log_file)  # type: ignore
 
 def main():
-    train_model(visualize=True)
+    train_model(visualize=True, prepopulate_start=True, use_replay=False)
 
 if __name__ == "__main__":
     main()
