@@ -159,7 +159,8 @@ def train_model(visualize=True, notebook=False, random=False, episodes=500,
         close_log_file(log_file)  # type: ignore
 
 def main():
-    train_model(visualize=True, prepopulate_start=True, use_replay=False)
+    train_model(visualize=True, notebook=False, prepopulate_start=False, use_replay=False,
+                episodes=1000, num_verts=50, num_edges=100, delta_e=75)
 
 if __name__ == "__main__":
     main()
